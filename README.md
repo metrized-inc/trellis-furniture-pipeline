@@ -36,8 +36,9 @@
 - **Hardware**: An NVIDIA GPU with at least 16GB of memory is necessary. The code has been verified on NVIDIA A100 and A6000 GPUs.  
 - **Software**:   
   - The [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit-archive) is needed to compile certain submodules. The code has been tested with CUDA versions 11.8 and 12.2.  This repo use **CUDA 12.4**.
-  - [Conda](https://docs.anaconda.com/miniconda/install/#quick-command-line-install) is recommended for managing dependencies.  
-  - Python version 3.8 or higher is required. 
+  - The [VS studio 2022](https://visualstudio.microsoft.com/zh-hans/vs/) with C++ compile needs.
+  ~~- [Conda](https://docs.anaconda.com/miniconda/install/#quick-command-line-install) is recommended for managing dependencies.~~
+  ~~- Python version 3.8 or higher is required.~~
 
   Give unrestricted script access to powershell so venv can work:
 
