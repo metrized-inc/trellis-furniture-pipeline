@@ -1,11 +1,8 @@
 ﻿Set-Location $PSScriptRoot
 
 $Env:HF_HOME = "huggingface"
-#$Env:HF_ENDPOINT="https://hf-mirror.com"
 $Env:PIP_DISABLE_PIP_VERSION_CHECK = 1
 $Env:PIP_NO_CACHE_DIR = 1
-#$Env:PIP_INDEX_URL="https://pypi.mirrors.ustc.edu.cn/simple"
-#$Env:UV_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple/"
 $Env:UV_EXTRA_INDEX_URL = "https://download.pytorch.org/whl/cu124"
 $Env:UV_CACHE_DIR = "${env:LOCALAPPDATA}/uv/cache"
 $Env:UV_NO_BUILD_ISOLATION = 1
@@ -136,6 +133,9 @@ catch {
     ~/.local/bin/uv pip install git+https://github.com/sdbds/diff-gaussian-rasterization
     Check "Install diff-gaussian-rasterization failed"
 }
+
+~/.local/bin/uv pip install rembg
+Check "Install rembg failed"
 
 
 Write-Output "Install finished"
