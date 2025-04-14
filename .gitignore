@@ -525,3 +525,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Output Files
+*.glb
+*.mp4
+*.ply
