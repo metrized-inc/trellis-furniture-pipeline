@@ -62,7 +62,7 @@ def trellis_multiple_images(images, output_dir):
     video_mesh = render_utils.render_video(outputs['mesh'][0])['normal']
     torch.cuda.empty_cache()
     video = [np.concatenate([frame_gs, frame_mesh], axis=1) for frame_gs, frame_mesh in zip(video_gs, video_mesh)]
-    imageio.mimsave(os.path.join(output_dir, "iq_chair_material_changed.mp4"), video, fps=30)
+    imageio.mimsave(os.path.join(output_dir, "video.mp4"), video, fps=30)
 
     torch.cuda.empty_cache()
 
@@ -78,12 +78,11 @@ def trellis_multiple_images(images, output_dir):
 
 
 if __name__ == "__main__":
-    output_dir = ""
+    output_dir = "./"
     # Load an image
     images = [
         Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/back.jpg"),
-        Image.open("C:/Users/josephd/Pictures/furniture/iq chair 2/Material Changed/right.png"),
-        Image.open("C:/Users/josephd/Pictures/furniture/iq chair 2/Material Changed/back.png"),
-        Image.open("C:/Users/josephd/Pictures/furniture/iq chair 2/Material Changed/left.png"),
+        Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/front.jpg"),
+        Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/three-quarters.jpg"),
     ]
     trellis_multiple_images(images, output_dir)

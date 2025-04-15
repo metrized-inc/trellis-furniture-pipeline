@@ -137,6 +137,5 @@ catch {
 ~/.local/bin/uv pip install rembg
 Check "Install rembg failed"
 
-
 Write-Output "Install finished"
 Read-Host | Out-Null ;
