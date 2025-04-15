@@ -16,17 +16,28 @@ def compute_camera_distance_to_fit_object(obj, camera, margin=1.2):
 
 
 
-def setup_camera_and_render_views(output_dir: Path):
+def setup_camera_and_render_views(output_dir: Path, model_path: Path):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Turn on GPU ray tracing
-    bpy.context.scene.render.engine = "CYCLES"
+    bpy.context.scene.render.engine = "BLENDER_EEVEE"
     bpy.context.scene.cycles.device = "GPU"  # Optional: use GPU if available
     bpy.context.scene.cycles.use_adaptive_sampling = (
         True  # More samples in detailed areas
     )
     bpy.context.scene.cycles.use_denoising = True  # Reduce noise after sampling
     bpy.context.scene.cycles.samples = 2048  # good baseline
+
+    bpy.data.objects['Cube'].select_set(True)  # Only delete the cube
+    bpy.ops.object.delete()  # Delete selected objects
+
+    bpy.ops.import_scene.gltf(filepath=str(model_path))
+
+    # Apply smooth shading after import
+    for obj in bpy.context.selected_objects:
+        if obj.type == 'MESH':
+            for face in obj.data.polygons:
+                face.use_smooth = True
 
     # Render white background
     world = bpy.context.scene.world
@@ -61,20 +72,40 @@ def setup_camera_and_render_views(output_dir: Path):
         bpy.context.collection.objects.link(rim_obj)
 
         # Position and rotate behind the object (adjust these values as needed)
-        rim_obj.rotation_euler = Euler((math.radians(110), math.radians(220), 0), "XYZ")
-        rim_data.energy = 5.0  # Start with 5x main light intensity
+        rim_obj.rotation_euler = Euler((math.radians(110), math.radians(140), 270), "XYZ")
+        rim_data.energy = 40  
         rim_data.color = (0.8, 0.9, 1.0)  # Cool blue-white tint
 
-        # Optional: Add second rim light for symmetry
-        rim_data2 = bpy.data.lights.new(name="RimLight2", type="SUN")
-        rim_obj2 = bpy.data.objects.new(name="RimLight2", object_data=rim_data2)
-        bpy.context.collection.objects.link(rim_obj2)
-        rim_obj2.rotation_euler = Euler(
-            (math.radians(110), math.radians(140), 0), "XYZ"
-        )
-        rim_data2.energy = 3.0
-        rim_data2.color = (0.8, 0.9, 1.0)
+        # # Optional: Add second rim light for symmetry
+        # rim_data2 = bpy.data.lights.new(name="RimLight2", type="SUN")
+        # rim_obj2 = bpy.data.objects.new(name="RimLight2", object_data=rim_data2)
+        # bpy.context.collection.objects.link(rim_obj2)
+        # rim_obj2.rotation_euler = Euler(
+        #     (math.radians(110), math.radians(140), 200), "XYZ"
+        # )
+        # rim_data2.energy = 3.0
+        # rim_data2.color = (0.8, 0.9, 1.0)
 
+
+    # Add opposing light (SUN) to illuminate the opposite side
+    if "OpposingLight" not in bpy.data.objects:
+        opposing_light_data = bpy.data.lights.new(name="OpposingLight", type="SUN")
+        opposing_light_obj = bpy.data.objects.new(name="OpposingLight", object_data=opposing_light_data)
+        bpy.context.collection.objects.link(opposing_light_obj)
+
+        opposing_light_obj.rotation_euler = Euler((math.radians(110), math.radians(140), 90), "XYZ")
+        opposing_light_data.energy = 40
+        opposing_light_data.color = (0.8, 0.9, 1.0)
+
+        # opposing_light_data2 = bpy.data.lights.new(name="OpposingLight2", type="SUN")
+        # opposing_light_obj2 = bpy.data.objects.new(name="OpposingLight2", object_data=opposing_light_data2)
+        # bpy.context.collection.objects.link(opposing_light_obj2)
+        
+        # opposing_light_obj2.rotation_euler = Euler((math.radians(110), math.radians(90), 270), "XYZ")
+        # opposing_light_data2.energy = 40
+        # opposing_light_data2.color = (0.8, 0.9, 1.0)
+
+    
     target_obj = next(
         (obj for obj in bpy.context.scene.objects if obj.type == "MESH"), None
     )
@@ -109,7 +140,7 @@ def setup_camera_and_render_views(output_dir: Path):
         f"view_{angle:03}": (
             math.cos(math.radians(angle)) * suggested_distance,
             math.sin(math.radians(angle)) * suggested_distance,
-            0,  # Keep camera flat on Z axis
+            suggested_distance * 0.2,  # Keep camera flat on Z axis
         )
         for angle in range(0, 360, 45)
     }
@@ -126,10 +157,7 @@ def setup_camera_and_render_views(output_dir: Path):
 
 
 if __name__ == "__main__":
-    model_path = Path("data/models/[High poly]Cello 85 Sofa - Classic + Straight.glb")
-    texture_path = Path("data/textures/forest_texture.png")
-    normal_path = Path("data/textures/normalmap.png").resolve()
-    output_path = Path("data/outputs") / f"{model_path.stem}_{texture_path.stem}.glb"
+    model_path = Path("model.glb")
 
-    render_output_path = Path("data/outputs/renders") / model_path.stem
-    setup_camera_and_render_views(render_output_path)
+    render_output_path = Path("C:/Users/josephd/Pictures/furniture/salema2/renderings")
+    setup_camera_and_render_views(render_output_path, model_path)
