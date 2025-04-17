@@ -2,6 +2,193 @@ import bpy
 from pathlib import Path
 import math
 from mathutils import Euler, Vector
+import os
+from PIL import Image
+
+
+def project_texture_from_camera(obj, cam_obj, proj_image_filepath, blend_factor=1.0):
+    """
+    Projects a new image onto the object's current texture by blending the projected image
+    (using the camera's perspective via a UV Project modifier) with the existing base texture.
+    
+    Parameters:
+        obj (bpy.types.Object): The target mesh object.
+        cam_obj (bpy.types.Object): The camera to use for the projection.
+        proj_image_filepath (str): The file path to the image to project.
+        blend_factor (float): Factor for mixing (0 means only original texture, 1 means only projected image).
+    """
+
+    # --- Load the projection image ---
+    proj_image_filepath = str(Path(proj_image_filepath).resolve())
+    proj_image = None
+    for img in bpy.data.images:
+        if Path(img.filepath).resolve().as_posix() == Path(proj_image_filepath).as_posix():
+            proj_image = img
+            break
+    if not proj_image:
+        try:
+            proj_image = bpy.data.images.load(proj_image_filepath)
+        except Exception as e:
+            print(f"Failed to load projection image {proj_image_filepath}: {e}")
+            return
+
+    # --- Ensure a separate UV map exists for projection: "ProjUV" ---
+    uv_map_name = "ProjUV"
+    if uv_map_name not in obj.data.uv_layers:
+        obj.data.uv_layers.new(name=uv_map_name)
+    # Note: The active UV map is not automatically set; we'll instruct the modifier which one to use.
+
+    # --- Add a UV Project modifier for the projection ---
+    mod_name = "UVProject_Proj"
+    if mod_name in obj.modifiers:
+        uv_project = obj.modifiers[mod_name]
+    else:
+        uv_project = obj.modifiers.new(name=mod_name, type='UV_PROJECT')
+    uv_project.uv_layer = uv_map_name
+    uv_project.projectors.clear()
+    proj = uv_project.projectors.new()
+    proj.object = cam_obj
+
+    # --- Update the object's material node tree ---
+    # Assume the object already has a material. Use the first material.
+    if not obj.data.materials:
+        print("Object has no material; cannot project onto existing texture.")
+        return
+    mat = obj.data.materials[0]
+    if not mat.use_nodes:
+        mat.use_nodes = True
+    nt = mat.node_tree
+
+    # Get the Principled BSDF node (create it if missing)
+    bsdf = nt.nodes.get("Principled BSDF")
+    if not bsdf:
+        bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+
+    # Find the node currently feeding the Base Color (if any)
+    base_color_input = bsdf.inputs["Base Color"]
+    original_link = base_color_input.links[0].from_node if base_color_input.links else None
+
+    # Create a new Image Texture node for the projected image
+    proj_img_node = nt.nodes.new("ShaderNodeTexImage")
+    proj_img_node.image = proj_image
+    proj_img_node.label = "Projected Image"
+
+    # Create a UV Map node to force use of our "ProjUV" UV layer
+    uv_map_node = nt.nodes.new("ShaderNodeUVMap")
+    uv_map_node.uv_map = uv_map_name
+
+    # Connect the UV Map node to the Vector input of the projected image node
+    nt.links.new(uv_map_node.outputs["UV"], proj_img_node.inputs["Vector"])
+
+    # Create (or reuse) a MixRGB node to blend the original texture with the new projection.
+    # Try to find an existing MixRGB node labeled "TextureBlend"
+    mix_node = None
+    for node in nt.nodes:
+        if node.type == "MIX_RGB" and node.label == "TextureBlend":
+            mix_node = node
+            break
+    if not mix_node:
+        mix_node = nt.nodes.new("ShaderNodeMixRGB")
+        mix_node.label = "TextureBlend"
+        mix_node.blend_type = "MIX"
+        mix_node.inputs["Fac"].default_value = blend_factor
+
+    # Set up the mix factors
+    mix_node.inputs[0].default_value = blend_factor  # Factor input
+    # Connect the existing texture (if any) to MixRGB Color1, else use white if missing
+    if original_link:
+        nt.links.new(original_link.outputs[0], mix_node.inputs[1])
+    else:
+        mix_node.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    # Connect the projected image to MixRGB Color2
+    nt.links.new(proj_img_node.outputs["Color"], mix_node.inputs[2])
+
+    # Re-route the MixRGB node output to the BSDF Base Color.
+    # First, remove any existing links from Base Color
+    while base_color_input.links:
+        nt.links.remove(base_color_input.links[0])
+    nt.links.new(mix_node.outputs["Color"], base_color_input)
+
+    print(f"Projected image '{proj_image_filepath}' blended (factor={blend_factor}) with object's current texture using camera '{cam_obj.name}'.")
+
+
+def bake_projection_step(obj, bake_width=1024, bake_height=1024, bake_image_name="BakeImage"):
+    """
+    Bakes the current material’s Base Color into a new image and then reconnects it as the new base texture.
+    This clears out the temporary projection nodes so that they are baked into the texture.
+    """
+    import bpy
+    
+    mat = obj.data.materials[0]
+    nt = mat.node_tree
+
+    # Create (or get) an image texture node dedicated for baking.
+    bake_node = nt.nodes.get("BakeImage")
+    if not bake_node:
+        bake_node = nt.nodes.new("ShaderNodeTexImage")
+        bake_node.name = "BakeImage"
+        bake_node.label = "BakeImage"
+        # Position it (optional)
+        bake_node.location = (-400, 0)
+
+    # Create a new image for baking.
+    bake_img = bpy.data.images.new(bake_image_name, width=bake_width, height=bake_height, alpha=True)
+    bake_node.image = bake_img
+
+    # Set the BakeImage node as the active node.
+    nt.nodes.active = bake_node
+
+    # Switch to Cycles for baking.
+    previous_engine = bpy.context.scene.render.engine
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.context.scene.cycles.bake_type = 'COMBINED'
+    bpy.context.scene.render.bake.use_clear = True
+
+    # Make sure the object is active.
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    # Bake. (This may bring up a progress bar in the UI.)
+    bpy.ops.object.bake('INVOKE_DEFAULT')
+
+    # After baking, remove all nodes except for the Principled BSDF and our bake node.
+    # For simplicity, we will remove all links from the Base Color input and reconnect the bake image.
+    bsdf = nt.nodes.get("Principled BSDF")
+    if bsdf:
+        base_color_input = bsdf.inputs["Base Color"]
+        # Remove existing links.
+        while base_color_input.links:
+            nt.links.remove(base_color_input.links[0])
+        # Create a link from the baked image.
+        nt.links.new(bake_node.outputs["Color"], base_color_input)
+    
+    # Clean up: remove projection nodes if desired.
+    # (You might choose to remove nodes labeled "Projected Image", "TextureBlend", "UVMap", etc.)
+    for node in list(nt.nodes):
+        if node.name.startswith("Projected Image") or node.name.startswith("TextureBlend") or node.type == "UVMap":
+            nt.nodes.remove(node)
+    
+    # Switch back to the previous render engine.
+    bpy.context.scene.render.engine = previous_engine
+    print(f"Baked projection into image '{bake_image_name}'.")
+
+
+def project_all_textures_from_camera(obj, cam_obj, views, images, blend_factor=0.5):
+    """
+    For each view, projects an image onto the object's texture, then bakes the result into the texture.
+    This way each projection becomes part of the base texture before the next is applied.
+    """
+    import bpy, os
+    i = 0
+    for view_name, location in views.items():
+        # Position the camera.
+        cam_obj.location = location
+        bpy.context.view_layer.update()
+        # Apply projection from current view.
+        project_texture_from_camera(obj, cam_obj, images[i], blend_factor)
+        # Bake the projection into a new base texture.
+        bake_projection_step(obj, bake_image_name=f"Bake_{view_name}")
+        i += 1
 
 
 def compute_camera_distance_to_fit_object(obj, camera, margin=1.2):
@@ -16,7 +203,7 @@ def compute_camera_distance_to_fit_object(obj, camera, margin=1.2):
 
 
 
-def setup_camera_and_render_views(output_dir: Path, model_path: Path):
+def setup_camera_and_render_views(output_dir: Path, model_path: Path, image_folder: Path):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Turn on GPU ray tracing
@@ -32,6 +219,8 @@ def setup_camera_and_render_views(output_dir: Path, model_path: Path):
     bpy.ops.object.delete()  # Delete selected objects
 
     bpy.ops.import_scene.gltf(filepath=str(model_path))
+    imported_objects = list(bpy.context.selected_objects)
+    imported_mesh = next((obj for obj in imported_objects if obj.type == 'MESH'), None)
 
     # Apply smooth shading after import
     for obj in bpy.context.selected_objects:
@@ -76,16 +265,6 @@ def setup_camera_and_render_views(output_dir: Path, model_path: Path):
         rim_data.energy = 40  
         rim_data.color = (0.8, 0.9, 1.0)  # Cool blue-white tint
 
-        # # Optional: Add second rim light for symmetry
-        # rim_data2 = bpy.data.lights.new(name="RimLight2", type="SUN")
-        # rim_obj2 = bpy.data.objects.new(name="RimLight2", object_data=rim_data2)
-        # bpy.context.collection.objects.link(rim_obj2)
-        # rim_obj2.rotation_euler = Euler(
-        #     (math.radians(110), math.radians(140), 200), "XYZ"
-        # )
-        # rim_data2.energy = 3.0
-        # rim_data2.color = (0.8, 0.9, 1.0)
-
 
     # Add opposing light (SUN) to illuminate the opposite side
     if "OpposingLight" not in bpy.data.objects:
@@ -96,14 +275,6 @@ def setup_camera_and_render_views(output_dir: Path, model_path: Path):
         opposing_light_obj.rotation_euler = Euler((math.radians(110), math.radians(140), 90), "XYZ")
         opposing_light_data.energy = 40
         opposing_light_data.color = (0.8, 0.9, 1.0)
-
-        # opposing_light_data2 = bpy.data.lights.new(name="OpposingLight2", type="SUN")
-        # opposing_light_obj2 = bpy.data.objects.new(name="OpposingLight2", object_data=opposing_light_data2)
-        # bpy.context.collection.objects.link(opposing_light_obj2)
-        
-        # opposing_light_obj2.rotation_euler = Euler((math.radians(110), math.radians(90), 270), "XYZ")
-        # opposing_light_data2.energy = 40
-        # opposing_light_data2.color = (0.8, 0.9, 1.0)
 
     
     target_obj = next(
@@ -155,9 +326,32 @@ def setup_camera_and_render_views(output_dir: Path, model_path: Path):
         bpy.ops.render.render(write_still=True)
         print(f" Saved: {filepath}")
 
+    
+    imgs = []
+    valid_images = [".jpeg", ".jpg",".gif",".png",".tga"]
+    for f in os.listdir(image_folder):
+        ext = os.path.splitext(f)[1]
+        if ext.lower() not in valid_images:
+            continue
+        imgs.append(os.path.join(image_folder,f))
+    
+    project_all_textures_from_camera(imported_mesh, cam_obj, views, imgs)
+
+
+    for view_name, location in views.items():
+        # cam_obj.rotation_euler = rotation
+        cam_obj.location = location
+        bpy.context.view_layer.update()
+
+        filepath = (output_dir / f"{view_name}-retextured.png").resolve()
+        bpy.context.scene.render.filepath = str(filepath)
+        bpy.ops.render.render(write_still=True)
+        print(f" Saved: {filepath}")
+
 
 if __name__ == "__main__":
     model_path = Path("model.glb")
+    image_folder = Path(r"C:\Users\josephd\Pictures\furniture\salema2\retextured")
 
     render_output_path = Path("C:/Users/josephd/Pictures/furniture/salema2/renderings")
-    setup_camera_and_render_views(render_output_path, model_path)
+    setup_camera_and_render_views(render_output_path, model_path, image_folder)
