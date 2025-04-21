@@ -61,7 +61,7 @@ def bake_texture(obj, bake_dir, img_name, image_size=2048):
     if obj:
         for poly in obj.data.polygons:
             poly.use_smooth = True
-            
+
     obj.data.use_auto_smooth = True
     obj.data.auto_smooth_angle = math.radians(30)  # adjust as needed
     obj.data.update()  # refresh the data
@@ -319,6 +319,6 @@ if __name__ == "__main__":
         "tertiary": [],
     }
 
-    obj = setup_scene(r"C:\Users\josephd\Pictures\furniture\32-view-sofa\grouped.glb")
+    obj = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\32-view-sofa\grouped.glb")
     print("Finished scene setup, starting to apply and bake")
-    permutate_and_bake_materials(materials, obj, r"C:\Users\josephd\Pictures\furniture\32-view-sofa\baked_textures")
+    permutate_and_bake_materials(materials=materials, obj=obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\32-view-sofa\baked_textures")
