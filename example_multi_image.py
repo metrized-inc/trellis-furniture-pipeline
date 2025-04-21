@@ -78,7 +78,7 @@ def trellis_multiple_images(images, output_dir):
     glb.export(os.path.join(output_dir, "model.glb"))
 
 
-def process_and_export_glb(input_path: str, output_path: str, merge_distance: float = 0.001):
+def process_and_export_glb(input_path: str, output_path: str):
     """
     Imports a GLB file, merges all mesh vertices by distance,
     performs a Smart UV project, and exports the mesh as a GLB.
