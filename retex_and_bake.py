@@ -321,4 +321,4 @@ if __name__ == "__main__":
 
     obj = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\32-view-sofa\grouped.glb")
     print("Finished scene setup, starting to apply and bake")
-    permutate_and_bake_materials(materials=materials, obj=obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\32-view-sofa\baked_textures")
+    permutate_and_bake_materials(materials, obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\32-view-sofa\baked_textures")

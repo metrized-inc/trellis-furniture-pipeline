@@ -16,9 +16,9 @@ def trellis_and_process(image_folder, model_folder=None, output_folder=None):
 
     # Run the Trellis pipeline on the loaded images
     if  model_folder is None:
-        model_folder = os.path.join(os.path.dirname(image_folder), "trellis_outputs")
-    if output_folder is None:
-        output_folder = os.path.join(os.path.dirname(image_folder), "renderings")
+        model_folder = os.path.join(os.path.dirname(image_folder), "trellis_out")
+    # if output_folder is None:
+    #     output_folder = os.path.join(os.path.dirname(image_folder), "renderings")
 
     trellis_multiple_images(imgs, model_folder)
     process_and_export_glb(os.path.join(model_folder, "model.glb"), os.path.join(model_folder, "model_processed.glb"))
@@ -26,4 +26,5 @@ def trellis_and_process(image_folder, model_folder=None, output_folder=None):
 
 
 if __name__ == "__main__":
-    trellis_and_process("C:/Users/josephd/Pictures/furniture/office chair/source")
+    trellis_and_process(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\source")
+    trellis_and_process(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\source")

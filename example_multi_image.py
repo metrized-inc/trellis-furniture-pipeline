@@ -127,6 +127,10 @@ def process_and_export_glb(input_path: str, output_path: str):
     bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')
 
+    # Set shading to smooth for all polygons
+    for poly in merged_obj.data.polygons:
+        poly.use_smooth = True
+
     # Export the processed mesh as GLB
     bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
     print(f"Exported processed GLB to {output_path}")

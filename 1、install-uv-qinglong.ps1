@@ -140,5 +140,8 @@ Check "Install rembg failed"
 ~/.local/bin/uv pip install bpy
 Check "Install bpy failed"
 
+~/.local/bin/uv pip install "numpy<2.0"
+Check "Install numpy failed"
+
 Write-Output "Install finished"
 Read-Host | Out-Null ;
