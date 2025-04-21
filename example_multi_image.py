@@ -1,5 +1,6 @@
 import os
 import torch
+import bpy
 # os.environ['ATTN_BACKEND'] = 'xformers'   # Can be 'flash-attn' or 'xformers', default is 'flash-attn'
 os.environ['SPCONV_ALGO'] = 'native'        # Can be 'native' or 'auto', default is 'auto'.
                                             # 'auto' is faster but will do benchmarking at the beginning.
@@ -77,6 +78,60 @@ def trellis_multiple_images(images, output_dir):
     glb.export(os.path.join(output_dir, "model.glb"))
 
 
+def process_and_export_glb(input_path: str, output_path: str, merge_distance: float = 0.001):
+    """
+    Imports a GLB file, merges all mesh vertices by distance,
+    performs a Smart UV project, and exports the mesh as a GLB.
+
+    Parameters:
+        input_path (str): File path to the input GLB.
+        output_path (str): File path for the exported GLB.
+        merge_distance (float): Distance threshold for merging vertices.
+    """
+
+    if not os.path.exists(input_path):
+        raise RuntimeError(f"Input file not found: {input_path}")
+
+    # Clear the current scene
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+    # Import the GLB
+    bpy.ops.import_scene.gltf(filepath=input_path)
+
+    # Collect imported mesh objects
+    meshes = [obj for obj in bpy.context.selected_objects if obj.type == 'MESH']
+    if not meshes:
+        print("No mesh objects were imported.")
+        return
+
+    # If multiple meshes were imported, join them into a single object
+    if len(meshes) > 1:
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in meshes:
+            obj.select_set(True)
+        bpy.context.view_layer.objects.active = meshes[0]
+        bpy.ops.object.join()
+        merged_obj = bpy.context.view_layer.objects.active
+    else:
+        merged_obj = meshes[0]
+        merged_obj.select_set(True)
+
+    # Enter Edit mode, select all vertices, and merge them by distance
+    # Set the active object to your merged mesh
+    bpy.context.view_layer.objects.active = merged_obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold=0.0001)
+    bpy.ops.uv.smart_project()
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    # Export the processed mesh as GLB
+    bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
+    print(f"Exported processed GLB to {output_path}")
+
+
 if __name__ == "__main__":
     output_dir = "./"
     # Load an image
@@ -86,3 +141,4 @@ if __name__ == "__main__":
         Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/three-quarters.jpg"),
     ]
     trellis_multiple_images(images, output_dir)
+    process_and_export_glb(os.path.join(output_dir, "model.glb"), os.path.join(output_dir, "model_processed.glb"))
