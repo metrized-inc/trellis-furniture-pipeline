@@ -4,13 +4,16 @@ import itertools
 from mathutils import Euler, Vector
 import math
 
+TEXTURE_SIZE = 4096  # Size of the texture to bake
+
 class Material():
     # Each argument should contain a filepath to the image
-    def __init__(self, diffuse, roughness=None, metallic=None, normal=None, scale=20.0):
+    def __init__(self, diffuse, roughness=None, metallic=None, normal=None, orm=None, scale=20.0):
         self.diffuse = diffuse
         self.roughness = roughness
         self.metallic = metallic
         self.normal = normal
+        self.orm = orm    # new attribute for Occlusion/Roughness/Metallic texture
         self.scale = scale
 
 
@@ -41,13 +44,14 @@ class Material():
         return mapping
     
 
-def bake_texture(obj, bake_dir, img_name, image_size=2048):
+def bake_texture(obj, bake_dir, img_name, image_size=TEXTURE_SIZE):
     #Create blank image
     img = bpy.data.images.new(img_name, width=image_size, height=image_size)
 
     # 3) In each material’s node tree, add an Image Texture node pointing to our image,
     #    and make it the active bake target
     for slot in obj.material_slots:
+
         nodes = slot.material.node_tree.nodes
         # un‑select everything
         for n in nodes:
@@ -68,6 +72,7 @@ def bake_texture(obj, bake_dir, img_name, image_size=2048):
 
     print("Baking texture:", img_name)
     bpy.context.scene.cycles.device = "GPU"  # use GPU if available
+    bpy.context.scene.cycles.use_denoising = False  # disable denoising to fix seam issues
     bpy.ops.object.bake(type='COMBINED', use_clear=True)
     print("Bake complete")
 
@@ -146,10 +151,33 @@ def apply_materials(obj, primary, secondary, tertiary):
             links.new(n.outputs['Color'], norm_map.inputs['Color'])
             links.new(norm_map.outputs['Normal'], bsdf.inputs['Normal'])
 
+        # ORM: Occlusion/Roughness/Metallic combined texture
+        if mat_info.orm:
+            orm_node = add_image(nodes, links, mapping, mat_info.orm, loc=(-300, -300))
+            if orm_node:
+                sep_rgb = nodes.new('ShaderNodeSeparateRGB')
+                sep_rgb.location = (-100, -300)
+                links.new(orm_node.outputs['Color'], sep_rgb.inputs[0])
+                # Use G for Roughness and B for Metallic, overriding previous ones if desired
+                links.new(sep_rgb.outputs['G'], bsdf.inputs['Roughness'])
+                links.new(sep_rgb.outputs['B'], bsdf.inputs['Metallic'])
+                # For Occlusion: multiply the diffuse color with R. Create a MixRGB node.
+                if d:
+                    mix_occlusion = nodes.new('ShaderNodeMixRGB')
+                    mix_occlusion.blend_type = 'MULTIPLY'
+                    mix_occlusion.location = (-100, 300)
+                    mix_occlusion.inputs['Fac'].default_value = 1.0
+                    # Disconnect the original diffuse connection from Base Color if needed.
+                    # Here we assume that connecting the mix node later will override it.
+                    links.new(d.outputs['Color'], mix_occlusion.inputs[1])
+                    links.new(sep_rgb.outputs['R'], mix_occlusion.inputs[2])
+                    links.new(mix_occlusion.outputs['Color'], bsdf.inputs['Base Color'])
+
+
         # assign to object (replace existing or append)
-        names = [s.material.name if s.material else "" for s in obj.material_slots]
-        if name in names:
-            idx = names.index(name)
+        existing = [s.material.name if s.material else "" for s in obj.material_slots]
+        if name in existing:
+            idx = existing.index(name)
             obj.material_slots[idx].material = mat
         else:
             obj.data.materials.append(mat)
@@ -191,7 +219,7 @@ def permutate_and_bake_materials(materials, obj, bake_dir):
         print(d["name"], d["use"])
 
     bpy.context.scene.cycles.bake_type = 'COMBINED'
-    bpy.context.scene.cycles.samples = 20  # adjust as needed
+    bpy.context.scene.cycles.samples = 40  # adjust as needed
 
     # ensure our object is active/selected
     bpy.ops.object.select_all(action='DESELECT')
@@ -229,11 +257,11 @@ def permutate_and_bake_materials(materials, obj, bake_dir):
 
 # Setups the scene with a plane and lighting, returns the mesh object
 def setup_scene(model_path):
-    bpy.data.objects['Cube'].select_set(True)  # delete the cube
-    bpy.data.objects['Light'].select_set(True)  # Delete Light
-    bpy.ops.object.delete()  # Delete selected objects
+    # Select and delete all objects in the scene
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
 
-    bpy.ops.import_scene.gltf(filepath=str(model_path))
+    bpy.ops.wm.obj_import(filepath=str(model_path))
     imported_objects = list(bpy.context.selected_objects)
     mesh_obj = next((obj for obj in imported_objects if obj.type == 'MESH'), None)
 
@@ -290,6 +318,62 @@ def setup_scene(model_path):
     return mesh_obj
 
 
+def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.0):
+    """
+    Sets up the World environment to use an HDRI texture (.exr) for lighting,
+    and sets the background strength.
+    
+    Parameters:
+        hdri_path (str): Full file path to the HDRI .exr image.
+        strength (float): Strength of the HDRI lighting. Default is 3.0.
+    """
+    import bpy
+
+    # Select and delete all objects in the scene
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+    bpy.ops.wm.obj_import(filepath=str(model_path))
+    imported_objects = list(bpy.context.selected_objects)
+    mesh_obj = next((obj for obj in imported_objects if obj.type == 'MESH'), None)
+
+    # Get the current world or create one if missing.
+    if not bpy.context.scene.world:
+        bpy.context.scene.world = bpy.data.worlds.new("World")
+    world = bpy.context.scene.world
+    world.use_nodes = True
+    node_tree = world.node_tree
+    nodes = node_tree.nodes
+    links = node_tree.links
+
+    # Clear all existing nodes
+    for node in nodes:
+        nodes.remove(node)
+
+    # Create nodes: Environment Texture, Background, and World Output.
+    env_tex = nodes.new(type="ShaderNodeTexEnvironment")
+    env_tex.location = (-300, 300)
+    try:
+        env_tex.image = bpy.data.images.load(hdri_path)
+    except Exception as e:
+        print(f"Failed to load HDRI image from {hdri_path}: {e}")
+        return
+
+    bg_node = nodes.new(type="ShaderNodeBackground")
+    bg_node.location = (0, 300)
+    bg_node.inputs['Strength'].default_value = strength
+
+    output_node = nodes.new(type="ShaderNodeOutputWorld")
+    output_node.location = (200, 300)
+
+    # Link Environment Texture -> Background -> World Output
+    links.new(env_tex.outputs['Color'], bg_node.inputs['Color'])
+    links.new(bg_node.outputs['Background'], output_node.inputs['Surface'])
+
+    print(f"HDRI environment set using: {hdri_path} with strength {strength}")
+    return mesh_obj
+
+
 if __name__ == "__main__":
     black_leather = Material(
         diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR1_4K.jpg",
@@ -313,12 +397,24 @@ if __name__ == "__main__":
         normal=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_Normal.png"
     )
 
+    alma_forest_green = Material(
+        diffuse=r"C:\Users\josephd\Downloads\textures-20250422T191441Z-001\textures\Alma Forest Green\0a23297c-2415-402b-8944-a2f01f59c53d.png",
+        orm=r"C:\Users\josephd\Downloads\textures-20250422T191441Z-001\textures\Alma Forest Green\orm_map.png"
+    )
+
     materials = {
-        "primary": [black_leather, tan_leather, white_fabric],
+        "primary": [alma_forest_green],
         "secondary": [wood],
         "tertiary": [],
     }
 
-    obj = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\32-view-sofa\grouped.glb")
-    print("Finished scene setup, starting to apply and bake")
-    permutate_and_bake_materials(materials, obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\32-view-sofa\baked_textures")
+    # obj = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\trellis_out\model_processed_and_grouped.obj")
+    obj = setup_hdri_environment(
+        model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\trellis_out\model_processed_and_grouped.obj",
+        hdri_path=r"C:\Users\josephd\Pictures\HDRIs\studio_small_09_1k.exr",
+        strength=1.6
+    )
+    permutate_and_bake_materials(materials, obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\baked_textures_hdri")
+
+    # obj2 = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\trellis_out\model_processed_and_grouped.obj")
+    # permutate_and_bake_materials(materials, obj2, bake_dir=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\baked_textures")

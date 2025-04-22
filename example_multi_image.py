@@ -43,11 +43,11 @@ def trellis_multiple_images(images, output_dir):
         seed=1,
         # Optional parameters
         sparse_structure_sampler_params={
-            "steps": 10,
-            "cfg_strength": 7.5,
+            "steps": 15,
+            "cfg_strength": 16,
         },
         slat_sampler_params={
-            "steps": 10,
+            "steps": 15,
             "cfg_strength": 3,
         },
     )
@@ -123,16 +123,24 @@ def process_and_export_glb(input_path: str, output_path: str):
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.mesh.remove_doubles(threshold=0.0001)
+
     bpy.ops.uv.smart_project()
     bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')
+
+    # Add one iteration of subdivision surface before UV unwrapping
+    subdiv = merged_obj.modifiers.new(name="Subdivision", type='SUBSURF')
+    subdiv.levels = 1
+    subdiv.render_levels = 1
+    # Apply the modifier so the subdivision becomes part of the mesh geometry
+    bpy.ops.object.modifier_apply(modifier="Subdivision")
 
     # Set shading to smooth for all polygons
     for poly in merged_obj.data.polygons:
         poly.use_smooth = True
 
-    # Export the processed mesh as GLB
-    bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
+    # Export the processed mesh as OBJ
+    bpy.ops.wm.obj_export(filepath=output_path)
     print(f"Exported processed GLB to {output_path}")
 
 

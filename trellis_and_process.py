@@ -21,10 +21,10 @@ def trellis_and_process(image_folder, model_folder=None, output_folder=None):
     #     output_folder = os.path.join(os.path.dirname(image_folder), "renderings")
 
     trellis_multiple_images(imgs, model_folder)
-    process_and_export_glb(os.path.join(model_folder, "model.glb"), os.path.join(model_folder, "model_processed.glb"))
+    process_and_export_glb(os.path.join(model_folder, "model.glb"), os.path.join(model_folder, "model_processed.obj"))
     # setup_camera_and_render_views(Path(output_folder), Path(os.path.join(model_folder, "model.glb")))
 
 
 if __name__ == "__main__":
     trellis_and_process(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\source")
-    trellis_and_process(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\source")
+    # trellis_and_process(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\source")
