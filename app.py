@@ -1,4 +1,4 @@
-import gradio as gr
+import gradio_app as gr
 from gradio_litmodel3d import LitModel3D
 
 import os

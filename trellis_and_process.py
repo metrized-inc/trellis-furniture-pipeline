@@ -5,7 +5,8 @@ from PIL import Image
 # from pathlib import Path
 
 
-def trellis_and_process(image_folder, model_folder=None, output_folder=None):
+if __name__ == "__main__":
+    image_folder = r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\source"
     imgs = []
     valid_images = [".jpeg", ".jpg",".png"]
     for f in os.listdir(image_folder):
@@ -14,17 +15,7 @@ def trellis_and_process(image_folder, model_folder=None, output_folder=None):
             continue
         imgs.append(Image.open(os.path.join(image_folder,f)))
 
-    # Run the Trellis pipeline on the loaded images
-    if  model_folder is None:
-        model_folder = os.path.join(os.path.dirname(image_folder), "trellis_out")
-    # if output_folder is None:
-    #     output_folder = os.path.join(os.path.dirname(image_folder), "renderings")
-
-    trellis_multiple_images(imgs, model_folder)
-    process_and_export_glb(os.path.join(model_folder, "model.glb"), os.path.join(model_folder, "model_processed.obj"))
-    # setup_camera_and_render_views(Path(output_folder), Path(os.path.join(model_folder, "model.glb")))
-
-
-if __name__ == "__main__":
-    trellis_and_process(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\source")
+    data = trellis_multiple_images(imgs)
+    with open(os.path.join(image_folder, "trellis_out", "model_processed.obj"), "wb") as f:
+        f.write(data)
     # trellis_and_process(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\source")

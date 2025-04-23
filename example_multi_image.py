@@ -18,6 +18,10 @@ def remove_all_backgrounds(images):
 
     # Process each image to remove the background
     for i, image in enumerate(images):
+        # Take first item from gradio tuple
+        if isinstance(image, tuple):
+            image = image[0]
+
         input_array = np.array(image)
         # Remove the background
         output = rembg.remove(input_array)
@@ -27,8 +31,8 @@ def remove_all_backgrounds(images):
     return images
 
 
-def trellis_multiple_images(images, output_dir):
-    os.makedirs(output_dir, exist_ok=True)
+def trellis_multiple_images(images):
+    # os.makedirs(output_dir, exist_ok=True)
     # Load a pipeline from a model folder or a Hugging Face model hub.
     pipeline = TrellisImageTo3DPipeline.from_pretrained("JeffreyXiang/TRELLIS-image-large")
     pipeline.cuda()
@@ -58,12 +62,12 @@ def trellis_multiple_images(images, output_dir):
     # - outputs['radiance_field']: a list of radiance fields
     # - outputs['mesh']: a list of meshes
 
-    video_gs = render_utils.render_video(outputs['gaussian'][0])['color']
-    torch.cuda.empty_cache()
-    video_mesh = render_utils.render_video(outputs['mesh'][0])['normal']
-    torch.cuda.empty_cache()
-    video = [np.concatenate([frame_gs, frame_mesh], axis=1) for frame_gs, frame_mesh in zip(video_gs, video_mesh)]
-    imageio.mimsave(os.path.join(output_dir, "video.mp4"), video, fps=30)
+    # video_gs = render_utils.render_video(outputs['gaussian'][0])['color']
+    # torch.cuda.empty_cache()
+    # video_mesh = render_utils.render_video(outputs['mesh'][0])['normal']
+    # torch.cuda.empty_cache()
+    # video = [np.concatenate([frame_gs, frame_mesh], axis=1) for frame_gs, frame_mesh in zip(video_gs, video_mesh)]
+    # imageio.mimsave(os.path.join(output_dir, "video.mp4"), video, fps=30)
 
     torch.cuda.empty_cache()
 
@@ -75,10 +79,11 @@ def trellis_multiple_images(images, output_dir):
         simplify=0.95,          # Ratio of triangles to remove in the simplification process
         texture_size=1024,      # Size of the texture used for the GLB
     )
-    glb.export(os.path.join(output_dir, "model.glb"))
+    glb.export(os.path.join("tmp", "model.glb"))
+    return process_and_export_obj(os.path.join("tmp", "model.glb"))
 
 
-def process_and_export_glb(input_path: str, output_path: str):
+def process_and_export_obj(input_path: str):
     """
     Imports a GLB file, merges all mesh vertices by distance,
     performs a Smart UV project, and exports the mesh as a GLB.
@@ -100,7 +105,7 @@ def process_and_export_glb(input_path: str, output_path: str):
     bpy.ops.import_scene.gltf(filepath=input_path)
 
     # Collect imported mesh objects
-    meshes = [obj for obj in bpy.context.selected_objects if obj.type == 'MESH']
+    meshes = [obj for obj in bpy.context.view_layer.selected_objects if obj.type == 'MESH']
     if not meshes:
         print("No mesh objects were imported.")
         return
@@ -140,17 +145,23 @@ def process_and_export_glb(input_path: str, output_path: str):
         poly.use_smooth = True
 
     # Export the processed mesh as OBJ
-    bpy.ops.wm.obj_export(filepath=output_path)
-    print(f"Exported processed GLB to {output_path}")
+    temp_path = os.path.join("tmp", "model.obj")
+    bpy.ops.wm.obj_export(filepath=temp_path)
+
+    with open(temp_path, "rb") as f:
+        obj_data = f.read()
+    return obj_data
 
 
 if __name__ == "__main__":
-    output_dir = "./"
-    # Load an image
-    images = [
-        Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/back.jpg"),
-        Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/front.jpg"),
-        Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/three-quarters.jpg"),
-    ]
-    trellis_multiple_images(images, output_dir)
-    process_and_export_glb(os.path.join(output_dir, "model.glb"), os.path.join(output_dir, "model_processed.glb"))
+    # output_dir = "./"
+    # # Load an image
+    # images = [
+    #     Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/back.jpg"),
+    #     Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/front.jpg"),
+    #     Image.open("C:/Users/josephd/Pictures/furniture/salema2/views/three-quarters.jpg"),
+    # ]
+    # data = trellis_multiple_images(images)
+    # with open(os.path.join(output_dir, "model_processed.obj"), "wb") as f:
+    #     f.write(data)
+    process_and_export_obj(os.path.join("tmp", "model.glb"))

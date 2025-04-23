@@ -530,3 +530,4 @@ dmypy.json
 *.glb
 *.mp4
 *.ply
+tmp
