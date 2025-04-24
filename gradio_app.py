@@ -7,8 +7,8 @@ from retex_and_bake import setup_hdri_environment, permutate_and_bake_materials,
 
 def texturepipe(model_file):
     model_path = model_file.name
-    print(model_path)
     hdri="hdris\studio_small_09_1k.exr"
+    hdri=r"C:\Users\josephd\Pictures\textures\HDRIs\studio_small_09_1k.exr"
     strength=1.4
 
     wood = Material(
@@ -23,7 +23,7 @@ def texturepipe(model_file):
     )
 
     materials = {
-        "primary": [alma_forest_green, wood],
+        "primary": [alma_forest_green],
         "secondary": [wood],
         "tertiary": [],
     }
@@ -39,7 +39,7 @@ TRELLIS = gr.Interface(fn=trellis_multiple_images,
 
 TEXTURE = gr.Interface(
     fn=texturepipe,
-    inputs=gr.File(label="Upload model"),
+    inputs=gr.File(label="Upload model (GLB)"),
     outputs=gr.Gallery(type="pil"),
     title="RETEX",
     description="Upload a model to be retextured."

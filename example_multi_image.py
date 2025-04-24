@@ -12,6 +12,7 @@ from PIL import Image
 from trellis.pipelines import TrellisImageTo3DPipeline
 from trellis.utils import render_utils, postprocessing_utils
 import rembg
+from utils import import_glb_merge_vertices
 
 
 def remove_all_backgrounds(images):
@@ -102,32 +103,7 @@ def process_and_export_obj(input_path: str):
     bpy.ops.object.delete()
 
     # Import the GLB
-    bpy.ops.import_scene.gltf(filepath=input_path)
-
-    # Collect imported mesh objects
-    meshes = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
-    if not meshes:
-        print("No mesh objects were imported.")
-        return
-
-    # If multiple meshes were imported, join them into a single object
-    if len(meshes) > 1:
-        bpy.ops.object.select_all(action='DESELECT')
-        for obj in meshes:
-            obj.select_set(True)
-        bpy.context.view_layer.objects.active = meshes[0]
-        bpy.ops.object.join()
-        merged_obj = bpy.context.view_layer.objects.active
-    else:
-        merged_obj = meshes[0]
-        merged_obj.select_set(True)
-
-    # Enter Edit mode, select all vertices, and merge them by distance
-    # Set the active object to your merged mesh
-    bpy.context.view_layer.objects.active = merged_obj
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.mesh.remove_doubles(threshold=0.0001)
+    merged_obj = import_glb_merge_vertices(input_path)
 
     bpy.ops.uv.smart_project()
     bpy.ops.mesh.select_all(action='DESELECT')

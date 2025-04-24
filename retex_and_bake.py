@@ -5,9 +5,10 @@ from mathutils import Euler, Vector
 import math
 import numpy as np
 from PIL import Image
+from utils import import_glb_merge_vertices
 
 TEXTURE_SIZE = 4096  # Size of the texture to bake
-DENOISE = True  # Set to True if you want to use denoising
+DENOISE = False  # Set to True if you want to use denoising
 
 class Material():
     # Each argument should contain a filepath to the image
@@ -62,49 +63,52 @@ def bake_texture(obj, img_name, image_size=TEXTURE_SIZE, bake_dir=None):
         bake_node = nodes.new('ShaderNodeTexImage')
         bake_node.image = img
         bake_node.select = True
-        slot.material.node_tree.nodes.active = bake_node
+        nodes.active = bake_node
 
-    # 4) Bake!
-    if obj:
-        for poly in obj.data.polygons:
-            poly.use_smooth = True
+    scene = bpy.context.scene
+    scene.render.engine        = 'CYCLES'           # must be Cycles
+    scene.cycles.device        = "GPU"
+    scene.cycles.use_denoising = DENOISE
 
-    obj.data.use_auto_smooth = True
-    obj.data.auto_smooth_angle = math.radians(30)  # adjust as needed
-    obj.data.update()  # refresh the data
+    obj.select_set(True)       # (re-)select and activate
+    bpy.context.view_layer.objects.active = obj
 
-    print("Baking texture:", img_name)
-    bpy.context.scene.cycles.device = "GPU"  # use GPU if available
-    bpy.context.scene.cycles.use_denoising = DENOISE  # disable denoising to fix seam issues
-    bpy.ops.object.bake(type='COMBINED', use_clear=True)
+    # build a minimal override that survives head-less execution
+    ctx = bpy.context.copy()
+    ctx.update({
+        "active_object"            : obj,
+        "selected_objects"         : [obj],
+        "selected_editable_objects": [obj],
+        "mode"                     : "OBJECT",
+    })
+
+    # 4. Smooth shading is a simple data edit – no operator needed -----------
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
+    obj.data.use_auto_smooth  = True
+    obj.data.auto_smooth_angle = math.radians(30)
+
+    # 5. Bake ---------------------------------------------------------------
+    print(f"Baking texture: {img_name}")
+    with bpy.context.temp_override(**ctx):
+        bpy.ops.object.bake(type='COMBINED', use_clear=True)
     print("Bake complete")
 
+    # 6. Save or return a PIL image -----------------------------------------
     if bake_dir:
-        # 5) Save out the result
-        img.filepath_raw = os.path.join(bake_dir, img_name + ".png")
-        img.file_format = 'PNG'
+        img.filepath_raw = os.path.join(bake_dir, f"{img_name}.png")
+        img.file_format  = 'PNG'
         img.save()
-
     else:
-        # Retrieve pixel data from the baked image
-        # Blender stores pixels as a flat array (R, G, B, A, R, G, B, A, ...)
-        pixel_data = np.array(img.pixels[:])
-        # Convert values to 0-255 and cast to uint8
-        pixel_data = (pixel_data * 255).astype(np.uint8)
-        # Reshape to (height, width, 4)
-        pixel_data = pixel_data.reshape((image_size, image_size, 4))
-        pil_img = Image.fromarray(pixel_data, mode="RGBA")
+        px = (np.array(img.pixels) * 255).astype(np.uint8)
+        pil_img = Image.fromarray(px.reshape(image_size, image_size, 4), "RGBA")
 
-    # 6) Cleanup: remove the bake‐target nodes and image
-    for slot in obj.material_slots:
-        nodes = slot.material.node_tree.nodes
-        for n in [n for n in nodes if isinstance(n, bpy.types.ShaderNodeTexImage) and n.image == img]:
-            nodes.remove(n)
+    # 7. Clean up ------------------------------------------------------------
     bpy.data.images.remove(img)
+    for slot in obj.material_slots:
+        slot.material.node_tree.nodes.clear()
 
-    # if not bake_dir:
-    #     # Return the PIL image for further processing or saving
-    #     return pil_img
+    return pil_img if not bake_dir else None
     
 
 def apply_materials(obj, primary, secondary, tertiary):
@@ -218,12 +222,12 @@ def permutate_and_bake_materials(materials, obj, bake_dir=None):
     """
     if not bake_dir:
         img_list = []
+    else:
+        # ensure output folder exists
+        os.makedirs(bake_dir, exist_ok=True)
 
     if obj is None:
         raise RuntimeError("No mesh object found. Please check the model path.")
-    
-    # ensure output folder exists
-    os.makedirs(bake_dir, exist_ok=True)
 
     # force Cycles
     bpy.context.scene.render.engine = "CYCLES"
@@ -301,15 +305,7 @@ def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.
 
     # Import the GLB
     # bpy.ops.wm.obj_import(filepath=str(model_path))
-    bpy.ops.import_scene.gltf(filepath=str(model_path))
-
-    # Merge Verticies
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.mesh.remove_doubles(threshold=0.0001)
-
-    imported_objects = list(bpy.context.selected_objects)
-    mesh_obj = next((obj for obj in imported_objects if obj.type == 'MESH'), None)
+    mesh_obj = import_glb_merge_vertices(model_path)
 
     if mesh_obj is None:
         raise RuntimeError(f"No mesh object found in {model_path}. Check the file format/path.")
@@ -347,7 +343,6 @@ def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.
     links.new(env_tex.outputs['Color'], bg_node.inputs['Color'])
     links.new(bg_node.outputs['Background'], output_node.inputs['Surface'])
 
-    print(f"HDRI environment set using: {hdri_path} with strength {strength}")
     return mesh_obj
 
 if __name__ == "__main__":
