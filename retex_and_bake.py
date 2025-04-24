@@ -3,8 +3,11 @@ import os
 import itertools
 from mathutils import Euler, Vector
 import math
+import numpy as np
+from PIL import Image
 
 TEXTURE_SIZE = 4096  # Size of the texture to bake
+DENOISE = True  # Set to True if you want to use denoising
 
 class Material():
     # Each argument should contain a filepath to the image
@@ -44,7 +47,7 @@ class Material():
         return mapping
     
 
-def bake_texture(obj, bake_dir, img_name, image_size=TEXTURE_SIZE):
+def bake_texture(obj, img_name, image_size=TEXTURE_SIZE, bake_dir=None):
     #Create blank image
     img = bpy.data.images.new(img_name, width=image_size, height=image_size)
 
@@ -72,15 +75,25 @@ def bake_texture(obj, bake_dir, img_name, image_size=TEXTURE_SIZE):
 
     print("Baking texture:", img_name)
     bpy.context.scene.cycles.device = "GPU"  # use GPU if available
-    bpy.context.scene.cycles.use_denoising = False  # disable denoising to fix seam issues
+    bpy.context.scene.cycles.use_denoising = DENOISE  # disable denoising to fix seam issues
     bpy.ops.object.bake(type='COMBINED', use_clear=True)
     print("Bake complete")
 
-    # 5) Save out the result
-    filepath = os.path.join(bake_dir, img_name + ".png")
-    img.filepath_raw = filepath
-    img.file_format = 'PNG'
-    img.save()
+    if bake_dir:
+        # 5) Save out the result
+        img.filepath_raw = os.path.join(bake_dir, img_name + ".png")
+        img.file_format = 'PNG'
+        img.save()
+
+    else:
+        # Retrieve pixel data from the baked image
+        # Blender stores pixels as a flat array (R, G, B, A, R, G, B, A, ...)
+        pixel_data = np.array(img.pixels[:])
+        # Convert values to 0-255 and cast to uint8
+        pixel_data = (pixel_data * 255).astype(np.uint8)
+        # Reshape to (height, width, 4)
+        pixel_data = pixel_data.reshape((image_size, image_size, 4))
+        pil_img = Image.fromarray(pixel_data, mode="RGBA")
 
     # 6) Cleanup: remove the bake‐target nodes and image
     for slot in obj.material_slots:
@@ -89,6 +102,10 @@ def bake_texture(obj, bake_dir, img_name, image_size=TEXTURE_SIZE):
             nodes.remove(n)
     bpy.data.images.remove(img)
 
+    # if not bake_dir:
+    #     # Return the PIL image for further processing or saving
+    #     return pil_img
+    
 
 def apply_materials(obj, primary, secondary, tertiary):
     """
@@ -183,7 +200,7 @@ def apply_materials(obj, primary, secondary, tertiary):
             obj.data.materials.append(mat)
 
 
-def permutate_and_bake_materials(materials, obj, bake_dir):
+def permutate_and_bake_materials(materials, obj, bake_dir=None):
     """
     materials_dict: {"primary": [M1, M2, …],
                      "secondary": […],
@@ -199,6 +216,12 @@ def permutate_and_bake_materials(materials, obj, bake_dir):
       • bake COMBINED (diffuse+spec+norm) in Cycles
       • save to bake_dir as bake_{p.name}_{s.name}_{t.name}.png
     """
+    if not bake_dir:
+        img_list = []
+
+    if obj is None:
+        raise RuntimeError("No mesh object found. Please check the model path.")
+    
     # ensure output folder exists
     os.makedirs(bake_dir, exist_ok=True)
 
@@ -222,7 +245,7 @@ def permutate_and_bake_materials(materials, obj, bake_dir):
     bpy.context.scene.cycles.samples = 40  # adjust as needed
 
     # ensure our object is active/selected
-    bpy.ops.object.select_all(action='DESELECT')
+    # bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
 
@@ -251,71 +274,16 @@ def permutate_and_bake_materials(materials, obj, bake_dir):
         print("Materials applied, baking texture")
 
         # 2) Bake out the texture for this combo
-        bake_texture(obj, bake_dir, 'bake_' + str(count))
+        if bake_dir:
+            bake_texture(obj, 'bake_' + str(count), bake_dir=bake_dir)
+        else:
+            img_list.append(bake_texture(obj, 'bake_' + str(count)))
+
         count += 1
-
-
-# Setups the scene with a plane and lighting, returns the mesh object
-def setup_scene(model_path):
-    # Select and delete all objects in the scene
-    bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.delete()
-
-    bpy.ops.wm.obj_import(filepath=str(model_path))
-    imported_objects = list(bpy.context.selected_objects)
-    mesh_obj = next((obj for obj in imported_objects if obj.type == 'MESH'), None)
-
-
-    # ADD IN PLANE BELOW MESH
-    # Compute world‑space bounding box corners
-    wm = mesh_obj.matrix_world
-    bbox_world = [wm @ Vector(corner) for corner in mesh_obj.bound_box]
-    xs = [v.x for v in bbox_world]
-    ys = [v.y for v in bbox_world]
-    zs = [v.z for v in bbox_world]
-
-    # center X/Y, and lowest Z
-    center_x = (min(xs) + max(xs)) / 2.0
-    center_y = (min(ys) + max(ys)) / 2.0
-    min_z    = min(zs)
-
-    # Add the plane
-    bpy.ops.mesh.primitive_plane_add(
-        size=5,
-        location=(center_x, center_y, min_z)
-    )
-
-    # SETUP STUDIO LIGHTING
-    rim_data = bpy.data.lights.new(name="RimLight", type="SUN")
-    rim_obj = bpy.data.objects.new(name="RimLight", object_data=rim_data)
-    bpy.context.collection.objects.link(rim_obj)
-
-    # Position and rotate behind the object (adjust these values as needed)
-    rim_obj.rotation_euler = Euler((math.radians(-40), math.radians(0), math.radians(0)), "XYZ")
-    rim_data.energy = 3  
-    rim_data.color = (0.8, 0.9, 1.0)  # Cool blue-white tint
-
-
-    rim_data = bpy.data.lights.new(name="RimLight3", type="SUN")
-    rim_obj = bpy.data.objects.new(name="RimLight3", object_data=rim_data)
-    bpy.context.collection.objects.link(rim_obj)
-
-    # Position and rotate behind the object (adjust these values as needed)
-    rim_obj.rotation_euler = Euler((math.radians(0), math.radians(60), math.radians(-30)), "XYZ")
-    rim_data.energy = 2  
-    rim_data.color = (0.8, 0.9, 1.0)  # Cool blue-white tint
-
-
-    rim_data = bpy.data.lights.new(name="RimLight4", type="SUN")
-    rim_obj = bpy.data.objects.new(name="RimLight4", object_data=rim_data)
-    bpy.context.collection.objects.link(rim_obj)
-
-    # Position and rotate behind the object (adjust these values as needed)
-    rim_obj.rotation_euler = Euler((math.radians(0), math.radians(-60), math.radians(30)), "XYZ")
-    rim_data.energy = 2  
-    rim_data.color = (0.8, 0.9, 1.0)  # Cool blue-white tint
-
-    return mesh_obj
+    
+    if not bake_dir:
+        # Return the list of PIL images for further processing or saving
+        return img_list
 
 
 def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.0):
@@ -327,15 +295,24 @@ def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.
         hdri_path (str): Full file path to the HDRI .exr image.
         strength (float): Strength of the HDRI lighting. Default is 3.0.
     """
-    import bpy
-
     # Select and delete all objects in the scene
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
 
-    bpy.ops.wm.obj_import(filepath=str(model_path))
+    # Import the GLB
+    # bpy.ops.wm.obj_import(filepath=str(model_path))
+    bpy.ops.import_scene.gltf(filepath=str(model_path))
+
+    # Merge Verticies
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold=0.0001)
+
     imported_objects = list(bpy.context.selected_objects)
     mesh_obj = next((obj for obj in imported_objects if obj.type == 'MESH'), None)
+
+    if mesh_obj is None:
+        raise RuntimeError(f"No mesh object found in {model_path}. Check the file format/path.")
 
     # Get the current world or create one if missing.
     if not bpy.context.scene.world:
@@ -373,7 +350,6 @@ def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.
     print(f"HDRI environment set using: {hdri_path} with strength {strength}")
     return mesh_obj
 
-
 if __name__ == "__main__":
     black_leather = Material(
         diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR1_4K.jpg",
@@ -398,8 +374,8 @@ if __name__ == "__main__":
     )
 
     alma_forest_green = Material(
-        diffuse=r"C:\Users\josephd\Downloads\textures-20250422T191441Z-001\textures\Alma Forest Green\0a23297c-2415-402b-8944-a2f01f59c53d.png",
-        orm=r"C:\Users\josephd\Downloads\textures-20250422T191441Z-001\textures\Alma Forest Green\orm_map.png"
+        diffuse=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\0a23297c-2415-402b-8944-a2f01f59c53d.png",
+        orm=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\orm_map.png"
     )
 
     materials = {
@@ -410,11 +386,11 @@ if __name__ == "__main__":
 
     # obj = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\trellis_out\model_processed_and_grouped.obj")
     obj = setup_hdri_environment(
-        model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\trellis_out\model_processed_and_grouped.obj",
-        hdri_path=r"C:\Users\josephd\Pictures\HDRIs\studio_small_09_1k.exr",
-        strength=1.6
+        model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\trellis_out\model_processed_and_grouped.glb",
+        hdri_path=r"C:\Users\josephd\Pictures\textures\HDRIs\studio_small_09_1k.exr",
+        strength=1.5
     )
-    permutate_and_bake_materials(materials, obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\baked_textures_hdri")
+    permutate_and_bake_materials(materials, obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\baked_textures_hdri")
 
     # obj2 = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\trellis_out\model_processed_and_grouped.obj")
     # permutate_and_bake_materials(materials, obj2, bake_dir=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\baked_textures")

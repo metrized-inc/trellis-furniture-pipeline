@@ -105,7 +105,7 @@ def process_and_export_obj(input_path: str):
     bpy.ops.import_scene.gltf(filepath=input_path)
 
     # Collect imported mesh objects
-    meshes = [obj for obj in bpy.context.view_layer.selected_objects if obj.type == 'MESH']
+    meshes = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
     if not meshes:
         print("No mesh objects were imported.")
         return
@@ -145,7 +145,7 @@ def process_and_export_obj(input_path: str):
         poly.use_smooth = True
 
     # Export the processed mesh as OBJ
-    temp_path = os.path.join("tmp", "model.obj")
+    temp_path = os.path.join("tmp", "model_processed.obj")
     bpy.ops.wm.obj_export(filepath=temp_path)
 
     with open(temp_path, "rb") as f:
@@ -165,3 +165,4 @@ if __name__ == "__main__":
     # with open(os.path.join(output_dir, "model_processed.obj"), "wb") as f:
     #     f.write(data)
     process_and_export_obj(os.path.join("tmp", "model.glb"))
+    # process_and_export_obj(r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\trellis_out\model.glb")
