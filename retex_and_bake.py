@@ -385,7 +385,7 @@ import click
 
 @click.command()
 @click.option('--material_json', type=str, help='Path to the json file that specifies the materials, look at material-example.json for reference.')
-@click.option('--model_path', type=str, help='Path to the model file (.glb or .obj).')
+@click.option('--model_path', type=str, help='Path to the .glb file you exported in step 2.')
 @click.option('--hdri_path', type=str, default="C:/Users/josephd/Pictures/textures/HDRIs/studio_small_09_1k.exr", help='Path to the HDRI image (.exr).')
 @click.option('--hdri_strength', type=float, default=1.5, help='Strength of the HDRI lighting. Default is 1.5.')
 @click.option('--texture_size', type=int, default=4096, help='Size of the texture to bake. Default is 4096.')

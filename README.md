@@ -34,6 +34,7 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
 **1.TRELLIS PIPELINE**
 - This pipeline feeds a folder of images to TRELLIS, and then performs some post processing to remove duplicate verticies and auto-unwrap the UV Map
 - To run it, use the command "python trellis_and_proccess.py --image_folder='path/to/your/image/folder'"
+- The outputs will be placed in a folder called "trellis_out" in the same directory as your image folder.
 
 **2.MANUAL STEP**
 - Take the .obj outputted by trellis and load it into Blender or your preferred 3d software
@@ -48,7 +49,7 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
 - To run the pipeline: "python retex_and_bake.py --material_json='path/to/json' --model_path='path/to/your/model'"
 - Here is a full list of the flags you can use (only the first two are required):
     - --material_json TEXT    Path to the json file that specifies the materials, look at material-example.json for reference.
-    - --model_path TEXT       Path to the model file (.glb or .obj).
+    - --model_path TEXT       Path to the .glb file you exported in step 2.
     - --hdri_path TEXT        Path to the HDRI image (.exr).
     - --hdri_strength FLOAT   Strength of the HDRI lighting. Default is 1.5.
     - --texture_size INTEGER  Size of the texture to bake. Default is 4096.
@@ -56,6 +57,8 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
                           will appear if set to True)
     - --samples INTEGER       Number of samples for baking. Default is 40.
     - --help                  Show this message and exit.
+- The outputs will be a folder of .png textures, this folder will be located in the same directory as the model you specified
+- These textures can easily be applied to the .obj that was outputted in step 1. For best results apply it as an emission texture so it is not affected by the lighting in the scene
 
 
 <!-- License -->
