@@ -11,11 +11,12 @@ DENOISE = True  # Set to True if you want to use denoising
 
 class Material():
     # Each argument should contain a filepath to the image
-    def __init__(self, diffuse, roughness=None, metallic=None, normal=None, orm=None, scale=1.0):
+    def __init__(self, diffuse, roughness=None, metallic=None, normal=None, ao=None, orm=None, scale=1.0):
         self.diffuse = diffuse
         self.roughness = roughness
         self.metallic = metallic
         self.normal = normal
+        self.ao = ao
         self.orm = orm    # new attribute for Occlusion/Roughness/Metallic texture
         self.scale = scale
 
@@ -168,6 +169,20 @@ def apply_materials(obj, primary, secondary, tertiary):
             norm_map.location = (0, -150)
             links.new(n.outputs['Color'], norm_map.inputs['Color'])
             links.new(norm_map.outputs['Normal'], bsdf.inputs['Normal'])
+
+        ao = add_image(nodes, links, mapping, mat_info.ao, loc=(-300, -300))
+        if ao:
+            if d:
+                mix_occlusion = nodes.new('ShaderNodeMixRGB')
+                mix_occlusion.blend_type = 'MULTIPLY'
+                mix_occlusion.location = (-100, 300)
+                mix_occlusion.inputs['Fac'].default_value = 1.0
+                # Disconnect the original diffuse connection from Base Color if needed.
+                # Here we assume that connecting the mix node later will override it.
+                links.new(d.outputs['Color'], mix_occlusion.inputs[1])
+                links.new(ao.outputs['Color'], mix_occlusion.inputs[2])
+                links.new(mix_occlusion.outputs['Color'], bsdf.inputs['Base Color'])
+
 
         # ORM: Occlusion/Roughness/Metallic combined texture
         if mat_info.orm:
@@ -373,6 +388,7 @@ def read_json_materials(json_path):
                     roughness=material.get("roughness"),
                     metallic=material.get("metallic"),
                     normal=material.get("normal"),
+                    ao=material.get("ambient_occlusion"),
                     orm=material.get("orm"),
                     scale=material.get("scale", 1.0)
                 )
@@ -393,7 +409,7 @@ import click
 @click.option('--samples', type=int, default=40, help='Number of samples for baking. Default is 40.')
 
 
-def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise):
+def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise, samples):
     """
     Main function to retouch and bake materials based on a JSON file.
     

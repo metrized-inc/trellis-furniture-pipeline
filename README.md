@@ -45,7 +45,7 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
 **3.RETEXTURE PIPELINE**
 - This step requires you to setup a .json file that specifies the materials you want to apply
 - It should be formatted in the way shown in material-example.json
-- Each material can hold the following properties (each should be an image path), only the first one is needed for it to be a valid material: ["diffuse", "roughness", "metallic", "normal", "orm"]. In addition, you can specify the scale with the "scale" property
+- Each material can hold the following properties (each should be an image path), only the first one is needed for it to be a valid material: ["diffuse", "roughness", "metallic", "normal", "ambient_occlusion", "orm"]. In addition, you can specify the scale with the "scale" property
 - To run the pipeline: "python retex_and_bake.py --material_json='path/to/json' --model_path='path/to/your/model'"
 - Here is a full list of the flags you can use (only the first two are required):
     - --material_json TEXT    Path to the json file that specifies the materials, look at material-example.json for reference.
