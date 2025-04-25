@@ -57,10 +57,6 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
     - --samples INTEGER       Number of samples for baking. Default is 40.
     - --help                  Show this message and exit.
 
-<!-- Dataset -->
-## 📚 Dataset
-
-We provide **TRELLIS-500K**, a large-scale dataset containing 500K 3D assets curated from [Objaverse(XL)](https://objaverse.allenai.org/), [ABO](https://amazon-berkeley-objects.s3.amazonaws.com/index.html), [3D-FUTURE](https://tianchi.aliyun.com/specials/promotion/alibaba-3d-future), [HSSD](https://huggingface.co/datasets/hssd/hssd-models), and [Toys4k](https://github.com/rehg-lab/lowshot-shapebias/tree/main/toys4k), filtered based on aesthetic scores. Please refer to the [dataset README](DATASET.md) for more details.
 
 <!-- License -->
 ## ⚖️ License
@@ -71,20 +67,4 @@ TRELLIS models and the majority of the code are licensed under the [MIT License]
 
 - [**Modified Flexicubes**](https://github.com/MaxtirError/FlexiCubes): In this project, we used a modified version of [Flexicubes](https://github.com/nv-tlabs/FlexiCubes) to support vertex attributes. This modified version is licensed under the [LICENSE](https://github.com/nv-tlabs/FlexiCubes/blob/main/LICENSE.txt).
 
-
-
-
-<!-- Citation -->
-## 📜 Citation
-
-If you find this work helpful, please consider citing our paper:
-
-```bibtex
-@article{xiang2024structured,
-    title   = {Structured 3D Latents for Scalable and Versatile 3D Generation},
-    author  = {Xiang, Jianfeng and Lv, Zelong and Xu, Sicheng and Deng, Yu and Wang, Ruicheng and Zhang, Bowen and Chen, Dong and Tong, Xin and Yang, Jiaolong},
-    journal = {arXiv preprint arXiv:2412.01506},
-    year    = {2024}
-}
-```
 
