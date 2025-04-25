@@ -37,6 +37,7 @@
 <!-- Usage -->
 ## HOW TO USE (do these steps in order)
 NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/activate"
+
 **1.TRELLIS PIPELINE**
 - This pipeline feeds a folder of images to TRELLIS, and then performs some post processing to remove duplicate verticies and auto-unwrap the UV Map
 - To run it, use the command "python trellis_and_proccess.py --image_folder='path/to/your/image/folder'"
@@ -53,16 +54,15 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
 - Each material can hold the following properties (each should be an image path), only the first one is needed for it to be a valid material: ["diffuse", "roughness", "metallic", "normal", "orm"]. In addition, you can specify the scale with the "scale" property
 - To run the pipeline: "python retex_and_bake.py --material_json='path/to/json' --model_path='path/to/your/model'"
 - Here is a full list of the flags you can use (only the first two are required):
-  --material_json TEXT    Path to the json file that specifies the materials,
-                          look at material-example.json for reference.
-  --model_path TEXT       Path to the model file (.glb or .obj).
-  --hdri_path TEXT        Path to the HDRI image (.exr).
-  --hdri_strength FLOAT   Strength of the HDRI lighting. Default is 1.5.
-  --texture_size INTEGER  Size of the texture to bake. Default is 4096.
-  --denoise BOOLEAN       Whether to use denoising. Default is False. (Seams
+    - --material_json TEXT    Path to the json file that specifies the materials, look at material-example.json for reference.
+    - --model_path TEXT       Path to the model file (.glb or .obj).
+    - --hdri_path TEXT        Path to the HDRI image (.exr).
+    - --hdri_strength FLOAT   Strength of the HDRI lighting. Default is 1.5.
+    - --texture_size INTEGER  Size of the texture to bake. Default is 4096.
+    - --denoise BOOLEAN       Whether to use denoising. Default is False. (Seams
                           will appear if set to True)
-  --samples INTEGER       Number of samples for baking. Default is 40.
-  --help                  Show this message and exit.
+    - --samples INTEGER       Number of samples for baking. Default is 40.
+    - --help                  Show this message and exit.
 
 <!-- Dataset -->
 ## 📚 Dataset
