@@ -7,12 +7,11 @@ import numpy as np
 from PIL import Image
 from utils import import_glb_merge_vertices
 
-TEXTURE_SIZE = 4096  # Size of the texture to bake
-DENOISE = False  # Set to True if you want to use denoising
+DENOISE = True  # Set to True if you want to use denoising
 
 class Material():
     # Each argument should contain a filepath to the image
-    def __init__(self, diffuse, roughness=None, metallic=None, normal=None, orm=None, scale=20.0):
+    def __init__(self, diffuse, roughness=None, metallic=None, normal=None, orm=None, scale=1.0):
         self.diffuse = diffuse
         self.roughness = roughness
         self.metallic = metallic
@@ -48,7 +47,7 @@ class Material():
         return mapping
     
 
-def bake_texture(obj, img_name, image_size=TEXTURE_SIZE, bake_dir=None):
+def bake_texture(obj, img_name, image_size, denoise, bake_dir=None):
     #Create blank image
     img = bpy.data.images.new(img_name, width=image_size, height=image_size)
 
@@ -65,50 +64,48 @@ def bake_texture(obj, img_name, image_size=TEXTURE_SIZE, bake_dir=None):
         bake_node.select = True
         nodes.active = bake_node
 
-    scene = bpy.context.scene
-    scene.render.engine        = 'CYCLES'           # must be Cycles
-    scene.cycles.device        = "GPU"
-    scene.cycles.use_denoising = DENOISE
+        # 4) Bake!
+    if obj:
+        for poly in obj.data.polygons:
+            poly.use_smooth = True
 
-    obj.select_set(True)       # (re-)select and activate
-    bpy.context.view_layer.objects.active = obj
+    obj.data.use_auto_smooth = True
+    obj.data.auto_smooth_angle = math.radians(30)  # adjust as needed
+    obj.data.update()  # refresh the data
 
-    # build a minimal override that survives head-less execution
-    ctx = bpy.context.copy()
-    ctx.update({
-        "active_object"            : obj,
-        "selected_objects"         : [obj],
-        "selected_editable_objects": [obj],
-        "mode"                     : "OBJECT",
-    })
-
-    # 4. Smooth shading is a simple data edit – no operator needed -----------
-    for poly in obj.data.polygons:
-        poly.use_smooth = True
-    obj.data.use_auto_smooth  = True
-    obj.data.auto_smooth_angle = math.radians(30)
-
-    # 5. Bake ---------------------------------------------------------------
-    print(f"Baking texture: {img_name}")
-    with bpy.context.temp_override(**ctx):
-        bpy.ops.object.bake(type='COMBINED', use_clear=True)
+    print("Baking texture:", img_name)
+    bpy.context.scene.cycles.device = "GPU"  # use GPU if available
+    bpy.context.scene.cycles.use_denoising = denoise  # disable denoising to fix seam issues
+    bpy.ops.object.bake(type='COMBINED', use_clear=True)
     print("Bake complete")
 
-    # 6. Save or return a PIL image -----------------------------------------
     if bake_dir:
-        img.filepath_raw = os.path.join(bake_dir, f"{img_name}.png")
-        img.file_format  = 'PNG'
+        # 5) Save out the result
+        img.filepath_raw = os.path.join(bake_dir, img_name + ".png")
+        img.file_format = 'PNG'
         img.save()
+
     else:
-        px = (np.array(img.pixels) * 255).astype(np.uint8)
-        pil_img = Image.fromarray(px.reshape(image_size, image_size, 4), "RGBA")
+        # Retrieve pixel data from the baked image
+        # Blender stores pixels as a flat array (R, G, B, A, R, G, B, A, ...)
+        pixel_data = np.array(img.pixels[:])
+        # Convert values to 0-255 and cast to uint8
+        pixel_data = (pixel_data * 255).astype(np.uint8)
+        # Reshape to (height, width, 4)
+        pixel_data = pixel_data.reshape((image_size, image_size, 4))
+        pil_img = Image.fromarray(pixel_data, mode="RGBA")
 
-    # 7. Clean up ------------------------------------------------------------
-    bpy.data.images.remove(img)
+    # 6) Cleanup: remove the bake‐target nodes and image
     for slot in obj.material_slots:
-        slot.material.node_tree.nodes.clear()
+        nodes = slot.material.node_tree.nodes
+        for n in [n for n in nodes if isinstance(n, bpy.types.ShaderNodeTexImage) and n.image == img]:
+            nodes.remove(n)
+    bpy.data.images.remove(img)
 
-    return pil_img if not bake_dir else None
+    if not bake_dir:
+        # Return the PIL image for further processing or saving
+        return pil_img
+  
     
 
 def apply_materials(obj, primary, secondary, tertiary):
@@ -204,7 +201,7 @@ def apply_materials(obj, primary, secondary, tertiary):
             obj.data.materials.append(mat)
 
 
-def permutate_and_bake_materials(materials, obj, bake_dir=None):
+def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, bake_dir=None):
     """
     materials_dict: {"primary": [M1, M2, …],
                      "secondary": […],
@@ -246,7 +243,7 @@ def permutate_and_bake_materials(materials, obj, bake_dir=None):
         print(d["name"], d["use"])
 
     bpy.context.scene.cycles.bake_type = 'COMBINED'
-    bpy.context.scene.cycles.samples = 40  # adjust as needed
+    bpy.context.scene.cycles.samples = samples  # adjust as needed
 
     # ensure our object is active/selected
     # bpy.ops.object.select_all(action='DESELECT')
@@ -279,9 +276,9 @@ def permutate_and_bake_materials(materials, obj, bake_dir=None):
 
         # 2) Bake out the texture for this combo
         if bake_dir:
-            bake_texture(obj, 'bake_' + str(count), bake_dir=bake_dir)
+            bake_texture(obj, 'bake_' + str(count), bake_dir=bake_dir, image_size=resolution, denoise=denoise)
         else:
-            img_list.append(bake_texture(obj, 'bake_' + str(count)))
+            img_list.append(bake_texture(obj, 'bake_' + str(count), image_size=resolution, denoise=denoise))
 
         count += 1
     
@@ -290,14 +287,14 @@ def permutate_and_bake_materials(materials, obj, bake_dir=None):
         return img_list
 
 
-def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.0):
+def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 1.5):
     """
     Sets up the World environment to use an HDRI texture (.exr) for lighting,
     and sets the background strength.
     
     Parameters:
         hdri_path (str): Full file path to the HDRI .exr image.
-        strength (float): Strength of the HDRI lighting. Default is 3.0.
+        strength (float): Strength of the HDRI lighting. Default is 1.5.
     """
     # Select and delete all objects in the scene
     bpy.ops.object.select_all(action='SELECT')
@@ -345,47 +342,111 @@ def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 3.
 
     return mesh_obj
 
-if __name__ == "__main__":
-    black_leather = Material(
-        diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR1_4K.jpg",
-        scale= 3.0,
-    )
 
-    tan_leather = Material(
-        diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR3_4K.jpg",
-        scale=3.0
-    )
-
-    white_fabric = Material(
-        diffuse=r"C:\Users\josephd\Pictures\textures\Fabric062_4K-JPG\Fabric062_4K-JPG_Color.jpg",
-        roughness=r"C:\Users\josephd\Pictures\textures\Fabric062_4K-JPG\Fabric062_4K-JPG_Roughness.jpg",
-        scale=7.0
-    )
-
-    wood = Material(
-        diffuse=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
-        roughness=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_Roughness.jpg",
-        normal=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_Normal.png"
-    )
-
-    alma_forest_green = Material(
-        diffuse=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\0a23297c-2415-402b-8944-a2f01f59c53d.png",
-        orm=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\orm_map.png"
-    )
-
-    materials = {
-        "primary": [alma_forest_green],
-        "secondary": [wood],
-        "tertiary": [],
+def read_json_materials(json_path):
+    """
+    Reads a JSON file containing material information and returns a dictionary of materials.
+    
+    Parameters:
+        json_path (str): Path to the JSON file.
+        
+    Returns:
+        dict: Dictionary containing material names as keys and Material objects as values.
+    """
+    import json
+    with open(json_path, 'r') as f:
+        data = json.load(f)
+    
+    material_dict = {
+        "primary": [],
+        "secondary": [],
+        "tertiary": []
     }
 
-    # obj = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-06\trellis_out\model_processed_and_grouped.obj")
-    obj = setup_hdri_environment(
-        model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\trellis_out\model_processed_and_grouped.glb",
-        hdri_path=r"C:\Users\josephd\Pictures\textures\HDRIs\studio_small_09_1k.exr",
-        strength=1.5
-    )
-    permutate_and_bake_materials(materials, obj, bake_dir=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\baked_textures_hdri")
+    for name, materials in data.items():
+        for material in materials:
+            # Creates Material objects for each material in the JSON file
+            # Values without a default are set to None if not found
+            material_dict[name].append(
+                Material(
+                    diffuse=material.get("diffuse"),
+                    roughness=material.get("roughness"),
+                    metallic=material.get("metallic"),
+                    normal=material.get("normal"),
+                    orm=material.get("orm"),
+                    scale=material.get("scale", 1.0)
+                )
+            )
+    
+    return material_dict
 
-    # obj2 = setup_scene(model_path=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\trellis_out\model_processed_and_grouped.obj")
-    # permutate_and_bake_materials(materials, obj2, bake_dir=r"C:\Users\josephd\Pictures\furniture\sample couch sections\30225-10\baked_textures")
+
+import click
+
+@click.command()
+@click.option('--material_json', type=str, help='Path to the json file that specifies the materials, look at material-example.json for reference.')
+@click.option('--model_path', type=str, help='Path to the model file (.glb or .obj).')
+@click.option('--hdri_path', type=str, default="C:/Users/josephd/Pictures/textures/HDRIs/studio_small_09_1k.exr", help='Path to the HDRI image (.exr).')
+@click.option('--hdri_strength', type=float, default=1.5, help='Strength of the HDRI lighting. Default is 1.5.')
+@click.option('--texture_size', type=int, default=4096, help='Size of the texture to bake. Default is 4096.')
+@click.option('--denoise', type=bool, default=False, help='Whether to use denoising. Default is False. (Seams will appear if set to True)')
+@click.option('--samples', type=int, default=40, help='Number of samples for baking. Default is 40.')
+
+
+def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise):
+    """
+    Main function to retouch and bake materials based on a JSON file.
+    
+    Parameters:
+        material_json (str): Path to the JSON file containing material information.
+    """
+    materials = read_json_materials(material_json)
+
+    # Set up the scene with the model and HDRI environment
+    obj = setup_hdri_environment(
+        model_path,
+        hdri_path,
+        hdri_strength
+    )
+
+    # Permutate and bake materials
+    permutate_and_bake_materials(materials, obj, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
+
+
+if __name__ == "__main__":
+    # black_leather = Material(
+    #     diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR1_4K.jpg",
+    #     scale= 3.0,
+    # )
+
+    # tan_leather = Material(
+    #     diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR3_4K.jpg",
+    #     scale=3.0
+    # )
+
+    # white_fabric = Material(
+    #     diffuse=r"C:\Users\josephd\Pictures\textures\Fabric062_4K-JPG\Fabric062_4K-JPG_Color.jpg",
+    #     roughness=r"C:\Users\josephd\Pictures\textures\Fabric062_4K-JPG\Fabric062_4K-JPG_Roughness.jpg",
+    #     scale=7.0
+    # )
+
+    # wood = Material(
+    #     diffuse=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
+    #     roughness=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_Roughness.jpg",
+    #     normal=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_Normal.png",
+    #     scale=20.0
+    # )
+
+    # alma_forest_green = Material(
+    #     diffuse=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\0a23297c-2415-402b-8944-a2f01f59c53d.png",
+    #     orm=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\orm_map.png",
+    #     scale=20.0
+    # )
+
+    # materials = {
+    #     "primary": [alma_forest_green],
+    #     "secondary": [wood],
+    #     "tertiary": [],
+    # }
+
+    retex_and_bake()

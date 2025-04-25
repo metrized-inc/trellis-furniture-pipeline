@@ -33,7 +33,6 @@ def remove_all_backgrounds(images):
 
 
 def trellis_multiple_images(images):
-    # os.makedirs(output_dir, exist_ok=True)
     # Load a pipeline from a model folder or a Hugging Face model hub.
     pipeline = TrellisImageTo3DPipeline.from_pretrained("JeffreyXiang/TRELLIS-image-large")
     pipeline.cuda()
@@ -87,11 +86,11 @@ def trellis_multiple_images(images):
 def process_and_export_obj(input_path: str):
     """
     Imports a GLB file, merges all mesh vertices by distance,
-    performs a Smart UV project, and exports the mesh as a GLB.
+    performs a Smart UV project, and exports the mesh as a OBJ.
 
     Parameters:
         input_path (str): File path to the input GLB.
-        output_path (str): File path for the exported GLB.
+        output_path (str): File path for the exported OBJ.
         merge_distance (float): Distance threshold for merging vertices.
     """
 
@@ -105,6 +104,9 @@ def process_and_export_obj(input_path: str):
     # Import the GLB
     merged_obj = import_glb_merge_vertices(input_path)
 
+    bpy.context.view_layer.objects.active = merged_obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project()
     bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')

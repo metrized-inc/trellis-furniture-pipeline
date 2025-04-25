@@ -1,0 +1,21 @@
+{
+    "primary": [
+        {   
+            "diffuse": "C:/Users/josephd/Pictures/textures/FabricLeatherCowhide001/FabricLeatherCowhide001_COL_VAR1_4K.jpg",
+            "scale": 3.0
+        },
+        {
+            "diffuse": "C:/Users/josephd/Pictures/textures/bird_couches/Alma Forest Green/0a23297c-2415-402b-8944-a2f01f59c53d.png",
+            "orm": "C:/Users/josephd/Pictures/textures/bird_couches/Alma Forest Green/orm_map.png",
+            "scale": 20.0
+        }
+    ],
+    "secondary": [
+        {
+            "diffuse": "C:/Users/josephd/Pictures/textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
+            "roughness": "C:/Users/josephd/Pictures/textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Roughness.jpg",
+            "normal": "C:/Users/josephd/Pictures/textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Normal.png"
+        }
+    ],
+    "tertiary": []
+}
