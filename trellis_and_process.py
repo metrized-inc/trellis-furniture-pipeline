@@ -1,4 +1,4 @@
-from example_multi_image import trellis_multiple_images
+from multi_image_trellis import trellis_multiple_images
 import os
 from PIL import Image
 import click
