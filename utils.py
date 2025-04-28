@@ -7,7 +7,7 @@ def import_glb_merge_vertices(model_path, *, merge_threshold=1e-4):
     bpy.ops.object.delete()
 
     # 1. Import the GLB ---------------------------------------------------------
-    bpy.ops.import_scene.gltf(filepath=str(model_path))
+    bpy.ops.import_scene.gltf(filepath=str(model_path), merge_vertices=True)
     meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
     if not meshes:
         raise ValueError("The GLB contains no mesh objects")

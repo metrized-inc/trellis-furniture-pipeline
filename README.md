@@ -45,7 +45,7 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
 **3.RETEXTURE PIPELINE**
 - This step requires you to setup a .json file that specifies the materials you want to apply
 - It should be formatted in the way shown in material-example.json
-- Each material can hold the following properties (each should be an image path), only the first one is needed for it to be a valid material: ["diffuse", "roughness", "metallic", "normal", "ambient_occlusion", "orm"]. In addition, you can specify the scale with the "scale" property
+- Each material should have a name (for naming baked outputs), and can hold the following properties (each should be an image path), only the first one is needed for it to be a valid material: ["diffuse", "roughness", "metallic", "normal", "ambient_occlusion", "orm"]. In addition, you can specify the scale with the "scale" property
 - To run the pipeline: "python retex_and_bake.py --material_json='path/to/json' --model_path='path/to/your/model'"
 - Here is a full list of the flags you can use (only the first two are required):
     - --material_json TEXT    Path to the json file that specifies the materials, look at material-example.json for reference.
@@ -56,6 +56,7 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
     - --denoise BOOLEAN       Whether to use denoising. Default is False. (Seams
                           will appear if set to True)
     - --samples INTEGER       Number of samples for baking. Default is 40.
+    - --export_glb BOOLEAN    Whether to export a baked GLB model instead of a texture map. Default is False.
     - --help                  Show this message and exit.
 - The outputs will be a folder of .png textures, this folder will be located in the same directory as the model you specified
 - These textures can easily be applied to the .obj that was outputted in step 1. For best results apply it as an emission texture so it is not affected by the lighting in the scene

@@ -11,7 +11,8 @@ DENOISE = True  # Set to True if you want to use denoising
 
 class Material():
     # Each argument should contain a filepath to the image
-    def __init__(self, diffuse, roughness=None, metallic=None, normal=None, ao=None, orm=None, scale=1.0):
+    def __init__(self, name, diffuse, roughness=None, metallic=None, normal=None, ao=None, orm=None, scale=1.0):
+        self.name = name
         self.diffuse = diffuse
         self.roughness = roughness
         self.metallic = metallic
@@ -274,7 +275,6 @@ def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, b
     sec_list  = materials.get('secondary') or [None]
     ter_list  = materials.get('tertiary')  or [None]
 
-    count = 0
     for pri, sec, ter in itertools.product(prim_list, sec_list, ter_list):
 
         # Report what we're baking
@@ -289,13 +289,18 @@ def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, b
 
         print("Materials applied, baking texture")
 
+        name = pri.name
+
+        if sec:
+            name += "_" + sec.name
+        if ter:
+            name += "_" + ter.name
+
         # 2) Bake out the texture for this combo
         if bake_dir:
-            bake_texture(obj, 'bake_' + str(count), bake_dir=bake_dir, image_size=resolution, denoise=denoise)
+            bake_texture(obj, name, bake_dir=bake_dir, image_size=resolution, denoise=denoise)
         else:
-            img_list.append(bake_texture(obj, 'bake_' + str(count), image_size=resolution, denoise=denoise))
-
-        count += 1
+            img_list.append(bake_texture(obj, name, image_size=resolution, denoise=denoise))
     
     if not bake_dir:
         # Return the list of PIL images for further processing or saving
@@ -384,6 +389,7 @@ def read_json_materials(json_path):
             # Values without a default are set to None if not found
             material_dict[name].append(
                 Material(
+                    name=material.get("name"),
                     diffuse=material.get("diffuse"),
                     roughness=material.get("roughness"),
                     metallic=material.get("metallic"),
@@ -397,6 +403,66 @@ def read_json_materials(json_path):
     return material_dict
 
 
+def apply_and_export_glb(model_path, bake_dir):
+
+    mesh = import_glb_merge_vertices(model_path)
+
+    # remove all materials from the object
+    for material in bpy.data.materials:
+        material.user_clear()
+        bpy.data.materials.remove(material)
+
+    # Iterate through all PNG texture files in bake_dir
+    png_files = [f for f in os.listdir(bake_dir) if f.lower().endswith(".png")]
+    if not png_files:
+        print("No PNG textures found in bake_dir.")
+        return
+
+    for png_filename in png_files:
+        png_path = os.path.join(bake_dir, png_filename)
+        
+        # Create an emissive material using the PNG texture
+        material_name = f"emissive_{os.path.splitext(png_filename)[0]}"
+        mat = bpy.data.materials.new(name=material_name)
+        mat.use_nodes = True
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+
+        # Clear all default nodes
+        for node in nodes:
+            nodes.remove(node)
+            
+        # Create necessary nodes
+        tex_node = nodes.new(type="ShaderNodeTexImage")
+        tex_node.location = (0, 0)
+
+        tex_node.image = bpy.data.images.load(png_path)
+
+        emission_node = nodes.new(type="ShaderNodeEmission")
+        emission_node.location = (200, 0)
+        # Optionally adjust the emissive strength
+        emission_node.inputs['Strength'].default_value = 1.0
+
+        output_node = nodes.new(type="ShaderNodeOutputMaterial")
+        output_node.location = (400, 0)
+
+        # Connect image texture to emission then to material output
+        links.new(tex_node.outputs['Color'], emission_node.inputs['Color'])
+        links.new(emission_node.outputs['Emission'], output_node.inputs['Surface'])
+
+        # Assign the new emissive material to the mesh, replacing existing materials
+        mesh.data.materials.clear()
+        mesh.data.materials.append(mat)
+
+        # Export the scene/model as a GLB using a unique file name
+        export_filename = f"{os.path.splitext(png_filename)[0]}.glb"
+        export_path = os.path.join(bake_dir, export_filename)
+        bpy.ops.export_scene.gltf(filepath=export_path, export_format='GLB')
+
+
+        os.remove(png_path)
+
+
 import click
 
 @click.command()
@@ -407,9 +473,10 @@ import click
 @click.option('--texture_size', type=int, default=4096, help='Size of the texture to bake. Default is 4096.')
 @click.option('--denoise', type=bool, default=False, help='Whether to use denoising. Default is False. (Seams will appear if set to True)')
 @click.option('--samples', type=int, default=40, help='Number of samples for baking. Default is 40.')
+@click.option('--export_glb', type=bool, default=False, help='Whether to export a baked GLB model instead of a texture map. Default is False.')
 
 
-def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise, samples):
+def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise, samples, export_glb):
     """
     Main function to retouch and bake materials based on a JSON file.
     
@@ -427,6 +494,10 @@ def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_
 
     # Permutate and bake materials
     permutate_and_bake_materials(materials, obj, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
+
+    if export_glb:
+        # Export the model with baked textures as a GLB file
+        apply_and_export_glb(model_path, os.path.join(os.path.dirname(model_path), "baked_textures"))
 
 
 if __name__ == "__main__":
