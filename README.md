@@ -24,8 +24,8 @@
 ## MUST HAVE `--recurse-submodules`
 
 2. Install the dependencies:
-    powershell run with `1、install-uv-qinglong.ps1` (right click then choose `use powershell run`)
-    auto install in one-clik
+    cd trellis-furniture-pipeline
+    make install
 
 <!-- Usage -->
 ## HOW TO USE (do these steps in order)
