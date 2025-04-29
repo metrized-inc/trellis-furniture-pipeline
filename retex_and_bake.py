@@ -6,6 +6,7 @@ import math
 import numpy as np
 from PIL import Image
 from utils import import_glb_merge_vertices
+from pathlib import Path
 
 DENOISE = True  # Set to True if you want to use denoising
 
@@ -127,6 +128,9 @@ def apply_materials(obj, primary, secondary, tertiary):
         if not path or not os.path.isfile(path):
             print(f"Warning: missing texture: {path}")
             return None
+        
+        # change to absolute path for blender
+        path = str(Path(path).resolve())
         img = bpy.data.images.load(path)
         img_node = nodes.new('ShaderNodeTexImage')
         img_node.image = img
@@ -468,7 +472,7 @@ import click
 @click.command()
 @click.option('--material_json', type=str, help='Path to the json file that specifies the materials, look at material-example.json for reference.')
 @click.option('--model_path', type=str, help='Path to the .glb file you exported in step 2.')
-@click.option('--hdri_path', type=str, default="C:/Users/josephd/Pictures/textures/HDRIs/studio_small_09_1k.exr", help='Path to the HDRI image (.exr).')
+@click.option('--hdri_path', type=str, default="hdris/studio_small_09_1k.exr", help='Path to the HDRI image (.exr).')
 @click.option('--hdri_strength', type=float, default=1.5, help='Strength of the HDRI lighting. Default is 1.5.')
 @click.option('--texture_size', type=int, default=4096, help='Size of the texture to bake. Default is 4096.')
 @click.option('--denoise', type=bool, default=False, help='Whether to use denoising. Default is False. (Seams will appear if set to True)')
@@ -483,6 +487,11 @@ def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_
     Parameters:
         material_json (str): Path to the JSON file containing material information.
     """
+    model_path = str(Path(model_path).resolve())
+    material_json = str(Path(material_json).resolve())
+    hdri_path = str(Path(hdri_path).resolve())
+    
+
     materials = read_json_materials(material_json)
 
     # Set up the scene with the model and HDRI environment

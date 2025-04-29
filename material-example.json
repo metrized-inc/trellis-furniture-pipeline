@@ -1,22 +1,17 @@
 {
     "primary": [
-        {   "name": "Alma Forest Green",
-            "diffuse": "C:/Users/josephd/Pictures/textures/bird_couches/Alma Forest Green/0a23297c-2415-402b-8944-a2f01f59c53d.png",
-            "orm": "C:/Users/josephd/Pictures/textures/bird_couches/Alma Forest Green/orm_map.png",
-            "scale": 20.0
-        },
-        {
-            "name": "Alma Orange",
-            "diffuse": "C:/Users/josephd/Pictures/textures/bird_couches/Alma Orange/36fd34d5-bb0d-4afb-beef-ee781c070f23.png",
-            "orm": "C:/Users/josephd/Pictures/textures/bird_couches/Alma Orange/orm_map.png",
+        {   "name": "Wood Veneer Oak",
+            "diffuse": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
+            "roughness": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Normal.png",
+            "normal": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Roughness.jpg",
             "scale": 20.0
         }
     ],
     "secondary": [
         {   "name": "Wood Veneer Oak",
-            "diffuse": "C:/Users/josephd/Pictures/textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
-            "roughness": "C:/Users/josephd/Pictures/textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Roughness.jpg",
-            "normal": "C:/Users/josephd/Pictures/textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Normal.png",
+            "diffuse": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
+            "roughness": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Roughness.jpg",
+            "normal": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Normal.png",
             "scale": 20.0
         }
     ],

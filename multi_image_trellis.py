@@ -79,6 +79,7 @@ def trellis_multiple_images(images):
         simplify=0.95,          # Ratio of triangles to remove in the simplification process
         texture_size=1024,      # Size of the texture used for the GLB
     )
+    os.makedirs("tmp", exist_ok=True)
     glb.export(os.path.join("tmp", "model.glb"))
     return process_and_export_obj(os.path.join("tmp", "model.glb"))
 
