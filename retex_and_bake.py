@@ -309,14 +309,14 @@ def permutate_and_bake_materials(materials, mesh, resolution, denoise, samples, 
         return img_list
 
 
-def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 1.5):
+def setup_hdri_environment(model_path: str, hdri_path: str, strength: float = 1.0):
     """
     Sets up the World environment to use an HDRI texture (.exr) for lighting,
     and sets the background strength.
     
     Parameters:
         hdri_path (str): Full file path to the HDRI .exr image.
-        strength (float): Strength of the HDRI lighting. Default is 1.5.
+        strength (float): Strength of the HDRI lighting. Default is 1.0.
     """
     # Select and delete all objects in the scene
     bpy.ops.object.select_all(action='SELECT')
@@ -472,7 +472,7 @@ import click
 @click.option('--material_json', type=str, help='Path to the json file that specifies the materials, look at material-example.json for reference.')
 @click.option('--model_path', type=str, help='Path to the .glb file you exported in step 2.')
 @click.option('--hdri_path', type=str, default="hdris/studio_small_09_1k.exr", help='Path to the HDRI image (.exr).')
-@click.option('--hdri_strength', type=float, default=1.5, help='Strength of the HDRI lighting. Default is 1.5.')
+@click.option('--hdri_strength', type=float, default=1.0, help='Strength of the HDRI lighting. Default is 1.0.')
 @click.option('--texture_size', type=int, default=4096, help='Size of the texture to bake. Default is 4096.')
 @click.option('--denoise', type=bool, default=False, help='Whether to use denoising. Default is False. (Seams will appear if set to True)')
 @click.option('--samples', type=int, default=40, help='Number of samples for baking. Default is 40.')

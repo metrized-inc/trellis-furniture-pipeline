@@ -51,7 +51,7 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
     - --material_json TEXT    Path to the json file that specifies the materials, look at material-example.json for reference.
     - --model_path TEXT       Path to the .glb file you exported in step 2.
     - --hdri_path TEXT        Path to the HDRI image (.exr).
-    - --hdri_strength FLOAT   Strength of the HDRI lighting. Default is 1.5.
+    - --hdri_strength FLOAT   Strength of the HDRI lighting. Default is 1.0.
     - --texture_size INTEGER  Size of the texture to bake. Default is 4096.
     - --denoise BOOLEAN       Whether to use denoising. Default is False. (Seams
                           will appear if set to True)
