@@ -1,9 +1,14 @@
 {
     "primary": [
-        {   "name": "Wood Veneer Oak",
-            "diffuse": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
-            "roughness": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Normal.png",
-            "normal": "example_textures/Poliigon_WoodVeneerOak_7760/Poliigon_WoodVeneerOak_7760_Roughness.jpg",
+        {   "name": "Alma Forest Green",
+            "diffuse": "example_textures/Alma Forest Green/diffuse.png",
+            "orm": "example_textures/Alma Forest Green/orm_map.png",
+            "scale": 20.0
+        },
+        {
+            "name": "Alma Orange",
+            "diffuse": "example_textures/Alma Orange/diffuse.png",
+            "orm": "example_textures/Alma Orange/orm_map.png",
             "scale": 20.0
         }
     ],
