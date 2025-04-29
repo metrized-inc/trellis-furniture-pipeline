@@ -50,13 +50,13 @@ class Material():
         return mapping
     
 
-def bake_texture(obj, img_name, image_size, denoise, bake_dir=None):
+def bake_texture(mesh, img_name, image_size, denoise, bake_dir=None):
     #Create blank image
     img = bpy.data.images.new(img_name, width=image_size, height=image_size)
 
     # 3) In each material’s node tree, add an Image Texture node pointing to our image,
     #    and make it the active bake target
-    for slot in obj.material_slots:
+    for slot in mesh.material_slots:
 
         nodes = slot.material.node_tree.nodes
         # un‑select everything
@@ -68,13 +68,13 @@ def bake_texture(obj, img_name, image_size, denoise, bake_dir=None):
         nodes.active = bake_node
 
         # 4) Bake!
-    if obj:
-        for poly in obj.data.polygons:
+    if mesh:
+        for poly in mesh.data.polygons:
             poly.use_smooth = True
 
-    obj.data.use_auto_smooth = True
-    obj.data.auto_smooth_angle = math.radians(30)  # adjust as needed
-    obj.data.update()  # refresh the data
+    mesh.data.use_auto_smooth = True
+    mesh.data.auto_smooth_angle = math.radians(30)  # adjust as needed
+    mesh.data.update()  # refresh the data
 
     print("Baking texture:", img_name)
     bpy.context.scene.cycles.device = "GPU"  # use GPU if available
@@ -99,7 +99,7 @@ def bake_texture(obj, img_name, image_size, denoise, bake_dir=None):
         pil_img = Image.fromarray(pixel_data, mode="RGBA")
 
     # 6) Cleanup: remove the bake‐target nodes and image
-    for slot in obj.material_slots:
+    for slot in mesh.material_slots:
         nodes = slot.material.node_tree.nodes
         for n in [n for n in nodes if isinstance(n, bpy.types.ShaderNodeTexImage) and n.image == img]:
             nodes.remove(n)
@@ -111,7 +111,7 @@ def bake_texture(obj, img_name, image_size, denoise, bake_dir=None):
   
     
 
-def apply_materials(obj, primary, secondary, tertiary):
+def apply_materials(mesh, primary, secondary, tertiary):
     """
     obj:        A mesh object.
     primary:    Material() instance with .diffuse, .roughness, .metallic, .normal
@@ -213,15 +213,15 @@ def apply_materials(obj, primary, secondary, tertiary):
 
 
         # assign to object (replace existing or append)
-        existing = [s.material.name if s.material else "" for s in obj.material_slots]
+        existing = [s.material.name if s.material else "" for s in mesh.material_slots]
         if name in existing:
             idx = existing.index(name)
-            obj.material_slots[idx].material = mat
+            mesh.material_slots[idx].material = mat
         else:
-            obj.data.materials.append(mat)
+            mesh.data.materials.append(mat)
 
 
-def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, bake_dir=None):
+def permutate_and_bake_materials(materials, mesh, resolution, denoise, samples, bake_dir=None):
     """
     materials_dict: {"primary": [M1, M2, …],
                      "secondary": […],
@@ -243,7 +243,7 @@ def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, b
         # ensure output folder exists
         os.makedirs(bake_dir, exist_ok=True)
 
-    if obj is None:
+    if mesh is None:
         raise RuntimeError("No mesh object found. Please check the model path.")
 
     # force Cycles
@@ -267,12 +267,12 @@ def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, b
 
     # ensure our object is active/selected
     # bpy.ops.object.select_all(action='DESELECT')
-    obj.select_set(True)
-    bpy.context.view_layer.objects.active = obj
+    mesh.select_set(True)
+    bpy.context.view_layer.objects.active = mesh
 
     # make sure there's at least one UV map
-    if not obj.data.uv_layers:
-        obj.data.uv_layers.new(name="UVMap")
+    if not mesh.data.uv_layers:
+        mesh.data.uv_layers.new(name="UVMap")
 
 
     prim_list = materials.get('primary')   or [None]
@@ -287,9 +287,7 @@ def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, b
               sec.diffuse   if sec else "—",
               ter.diffuse   if ter else "—")
 
-        # 1) Assign whatever is non‑None (pass None into apply_materials;
-        #    your apply_materials should handle missing channels gracefully)
-        apply_materials(obj, pri, sec, ter)
+        apply_materials(mesh, pri, sec, ter)
 
         print("Materials applied, baking texture")
 
@@ -302,9 +300,9 @@ def permutate_and_bake_materials(materials, obj, resolution, denoise, samples, b
 
         # 2) Bake out the texture for this combo
         if bake_dir:
-            bake_texture(obj, name, bake_dir=bake_dir, image_size=resolution, denoise=denoise)
+            bake_texture(mesh, name, bake_dir=bake_dir, image_size=resolution, denoise=denoise)
         else:
-            img_list.append(bake_texture(obj, name, image_size=resolution, denoise=denoise))
+            img_list.append(bake_texture(mesh, name, image_size=resolution, denoise=denoise))
     
     if not bake_dir:
         # Return the list of PIL images for further processing or saving
@@ -407,6 +405,7 @@ def read_json_materials(json_path):
     return material_dict
 
 
+# Function that applies the baked texture maps, exports the model as GLB, and removes the PNG files
 def apply_and_export_glb(model_path, bake_dir):
 
     mesh = import_glb_merge_vertices(model_path)
@@ -495,14 +494,14 @@ def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_
     materials = read_json_materials(material_json)
 
     # Set up the scene with the model and HDRI environment
-    obj = setup_hdri_environment(
+    mesh = setup_hdri_environment(
         model_path,
         hdri_path,
         hdri_strength
     )
 
     # Permutate and bake materials
-    permutate_and_bake_materials(materials, obj, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
+    permutate_and_bake_materials(materials, mesh, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
 
     if export_glb:
         # Export the model with baked textures as a GLB file
@@ -510,39 +509,4 @@ def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_
 
 
 if __name__ == "__main__":
-    # black_leather = Material(
-    #     diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR1_4K.jpg",
-    #     scale= 3.0,
-    # )
-
-    # tan_leather = Material(
-    #     diffuse=r"C:\Users\josephd\Pictures\textures\FabricLeatherCowhide001\FabricLeatherCowhide001_COL_VAR3_4K.jpg",
-    #     scale=3.0
-    # )
-
-    # white_fabric = Material(
-    #     diffuse=r"C:\Users\josephd\Pictures\textures\Fabric062_4K-JPG\Fabric062_4K-JPG_Color.jpg",
-    #     roughness=r"C:\Users\josephd\Pictures\textures\Fabric062_4K-JPG\Fabric062_4K-JPG_Roughness.jpg",
-    #     scale=7.0
-    # )
-
-    # wood = Material(
-    #     diffuse=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_BaseColor.jpg",
-    #     roughness=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_Roughness.jpg",
-    #     normal=r"C:\Users\josephd\Pictures\textures\Poliigon_WoodVeneerOak_7760\Poliigon_WoodVeneerOak_7760_Normal.png",
-    #     scale=20.0
-    # )
-
-    # alma_forest_green = Material(
-    #     diffuse=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\0a23297c-2415-402b-8944-a2f01f59c53d.png",
-    #     orm=r"C:\Users\josephd\Pictures\textures\bird_couches\Alma Forest Green\orm_map.png",
-    #     scale=20.0
-    # )
-
-    # materials = {
-    #     "primary": [alma_forest_green],
-    #     "secondary": [wood],
-    #     "tertiary": [],
-    # }
-
     retex_and_bake()
