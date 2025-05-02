@@ -40,7 +40,7 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
 - Take the .obj outputted by trellis and load it into Blender or your preferred 3d software
 - Assign different materials to different parts of your object (e.g. you can select the legs of a chair out and assign it to another material)
 - Export the object as a .glb
-- NOTE: The final step can take in a maximum of 3 materials, it expects them to be named "primary", "secondary", and "tertiary". Only a primary material is needed for the last step to work
+- NOTE: The final step can take in as many different material groups as you want, if you do not make a material it will automatically assign one to the whole model
 
 **3.RETEXTURE PIPELINE**
 - This step requires you to setup a .json file that specifies the materials you want to apply
