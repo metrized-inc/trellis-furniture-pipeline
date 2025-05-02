@@ -111,18 +111,7 @@ def bake_texture(mesh, img_name, image_size, denoise, bake_dir=None):
   
     
 
-def apply_materials(mesh, primary, secondary, tertiary):
-    """
-    obj:        A mesh object.
-    primary:    Material() instance with .diffuse, .roughness, .metallic, .normal
-    secondary:  Material() instance
-    tertiary:   Material() instance
-
-    Builds/updates materials named "primary", "secondary", "tertiary",
-    scales all their textures by 20× UV, and hooks up diffuse, roughness,
-    metallic, and normal channels.
-    """
-
+def apply_material(mesh, material, slot):
     # helper to add an Image Texture node and link its vector
     def add_image(nodes, links, mapping, path, loc):
         if not path or not os.path.isfile(path):
@@ -138,45 +127,61 @@ def apply_materials(mesh, primary, secondary, tertiary):
         links.new(mapping.outputs['Vector'], img_node.inputs['Vector'])
         return img_node
 
-    # package up the three slots
-    slots = {
-        "primary":   primary,
-        "secondary": secondary,
-        "tertiary":  tertiary,
-    }
 
-    for name, mat_info in slots.items():
-        if not mat_info:
-            continue
-        print("Applying material name:", name)
-        mat, nodes, links, bsdf = mat_info.make_blender_material(name)
-        mapping = mat_info.add_uv_mapping(nodes, links)
+    name = material.name
+    print("Applying material name:", name)
 
-        # Diffuse → Base Color
-        d = add_image(nodes, links, mapping, mat_info.diffuse,   loc=(-300, 300))
+    mat, nodes, links, bsdf = material.make_blender_material(name)
+    mapping = material.add_uv_mapping(nodes, links)
+
+    # Diffuse → Base Color
+    d = add_image(nodes, links, mapping, material.diffuse,   loc=(-300, 300))
+    if d:
+        links.new(d.outputs['Color'], bsdf.inputs['Base Color'])
+
+    # Roughness → Roughness
+    r = add_image(nodes, links, mapping, material.roughness, loc=(-300, 150))
+    if r:
+        links.new(r.outputs['Color'], bsdf.inputs['Roughness'])
+
+    # Metallic → Metallic
+    m = add_image(nodes, links, mapping, material.metallic,  loc=(-300, 0))
+    if m:
+        links.new(m.outputs['Color'], bsdf.inputs['Metallic'])
+
+    # Normal → NormalMap → Normal
+    n = add_image(nodes, links, mapping, material.normal,    loc=(-300, -150))
+    if n:
+        norm_map = nodes.new('ShaderNodeNormalMap')
+        norm_map.location = (0, -150)
+        links.new(n.outputs['Color'], norm_map.inputs['Color'])
+        links.new(norm_map.outputs['Normal'], bsdf.inputs['Normal'])
+
+    ao = add_image(nodes, links, mapping, material.ao, loc=(-300, -300))
+    if ao:
         if d:
-            links.new(d.outputs['Color'], bsdf.inputs['Base Color'])
+            mix_occlusion = nodes.new('ShaderNodeMixRGB')
+            mix_occlusion.blend_type = 'MULTIPLY'
+            mix_occlusion.location = (-100, 300)
+            mix_occlusion.inputs['Fac'].default_value = 1.0
+            # Disconnect the original diffuse connection from Base Color if needed.
+            # Here we assume that connecting the mix node later will override it.
+            links.new(d.outputs['Color'], mix_occlusion.inputs[1])
+            links.new(ao.outputs['Color'], mix_occlusion.inputs[2])
+            links.new(mix_occlusion.outputs['Color'], bsdf.inputs['Base Color'])
 
-        # Roughness → Roughness
-        r = add_image(nodes, links, mapping, mat_info.roughness, loc=(-300, 150))
-        if r:
-            links.new(r.outputs['Color'], bsdf.inputs['Roughness'])
 
-        # Metallic → Metallic
-        m = add_image(nodes, links, mapping, mat_info.metallic,  loc=(-300, 0))
-        if m:
-            links.new(m.outputs['Color'], bsdf.inputs['Metallic'])
-
-        # Normal → NormalMap → Normal
-        n = add_image(nodes, links, mapping, mat_info.normal,    loc=(-300, -150))
-        if n:
-            norm_map = nodes.new('ShaderNodeNormalMap')
-            norm_map.location = (0, -150)
-            links.new(n.outputs['Color'], norm_map.inputs['Color'])
-            links.new(norm_map.outputs['Normal'], bsdf.inputs['Normal'])
-
-        ao = add_image(nodes, links, mapping, mat_info.ao, loc=(-300, -300))
-        if ao:
+    # ORM: Occlusion/Roughness/Metallic combined texture
+    if material.orm:
+        orm_node = add_image(nodes, links, mapping, material.orm, loc=(-300, -300))
+        if orm_node:
+            sep_rgb = nodes.new('ShaderNodeSeparateRGB')
+            sep_rgb.location = (-100, -300)
+            links.new(orm_node.outputs['Color'], sep_rgb.inputs[0])
+            # Use G for Roughness and B for Metallic, overriding previous ones if desired
+            links.new(sep_rgb.outputs['G'], bsdf.inputs['Roughness'])
+            links.new(sep_rgb.outputs['B'], bsdf.inputs['Metallic'])
+            # For Occlusion: multiply the diffuse color with R. Create a MixRGB node.
             if d:
                 mix_occlusion = nodes.new('ShaderNodeMixRGB')
                 mix_occlusion.blend_type = 'MULTIPLY'
@@ -185,58 +190,22 @@ def apply_materials(mesh, primary, secondary, tertiary):
                 # Disconnect the original diffuse connection from Base Color if needed.
                 # Here we assume that connecting the mix node later will override it.
                 links.new(d.outputs['Color'], mix_occlusion.inputs[1])
-                links.new(ao.outputs['Color'], mix_occlusion.inputs[2])
+                links.new(sep_rgb.outputs['R'], mix_occlusion.inputs[2])
                 links.new(mix_occlusion.outputs['Color'], bsdf.inputs['Base Color'])
 
 
-        # ORM: Occlusion/Roughness/Metallic combined texture
-        if mat_info.orm:
-            orm_node = add_image(nodes, links, mapping, mat_info.orm, loc=(-300, -300))
-            if orm_node:
-                sep_rgb = nodes.new('ShaderNodeSeparateRGB')
-                sep_rgb.location = (-100, -300)
-                links.new(orm_node.outputs['Color'], sep_rgb.inputs[0])
-                # Use G for Roughness and B for Metallic, overriding previous ones if desired
-                links.new(sep_rgb.outputs['G'], bsdf.inputs['Roughness'])
-                links.new(sep_rgb.outputs['B'], bsdf.inputs['Metallic'])
-                # For Occlusion: multiply the diffuse color with R. Create a MixRGB node.
-                if d:
-                    mix_occlusion = nodes.new('ShaderNodeMixRGB')
-                    mix_occlusion.blend_type = 'MULTIPLY'
-                    mix_occlusion.location = (-100, 300)
-                    mix_occlusion.inputs['Fac'].default_value = 1.0
-                    # Disconnect the original diffuse connection from Base Color if needed.
-                    # Here we assume that connecting the mix node later will override it.
-                    links.new(d.outputs['Color'], mix_occlusion.inputs[1])
-                    links.new(sep_rgb.outputs['R'], mix_occlusion.inputs[2])
-                    links.new(mix_occlusion.outputs['Color'], bsdf.inputs['Base Color'])
-
-
-        # assign to object (replace existing or append)
-        existing = [s.material.name if s.material else "" for s in mesh.material_slots]
-        if name in existing:
-            idx = existing.index(name)
-            mesh.material_slots[idx].material = mat
+    # assign the material to the desired slot only if that slot exists and is not empty
+    if slot < len(mesh.material_slots):
+        if mesh.material_slots[slot].material:
+            mesh.material_slots[slot].material = mat
+            print(f"Material '{name}' assigned to slot {slot}.")
         else:
-            mesh.data.materials.append(mat)
+            print(f"Slot {slot} is empty; not assigning material.")
+    else:
+        print(f"Slot {slot} does not exist on the object; no material assigned.")
 
 
-def permutate_and_bake_materials(materials, mesh, resolution, denoise, samples, bake_dir=None):
-    """
-    materials_dict: {"primary": [M1, M2, …],
-                     "secondary": […],
-                     "tertiary": […]}
-    obj:            Your mesh object (must be UV‑unwrapped)
-    bake_dir:       Folder path where baked pngs will be saved
-    image_size:     Resolution of the baked texture
-
-    For each tuple (p, s, t) in the Cartesian product of the three lists:
-      • apply_materials(obj, p, s, t)
-      • create a new blank image
-      • inject it into every material as the active bake target
-      • bake COMBINED (diffuse+spec+norm) in Cycles
-      • save to bake_dir as bake_{p.name}_{s.name}_{t.name}.png
-    """
+def bake_materials_seperately(materials, mesh, resolution, denoise, samples, bake_dir=None):
     if not bake_dir:
         img_list = []
     else:
@@ -274,36 +243,26 @@ def permutate_and_bake_materials(materials, mesh, resolution, denoise, samples, 
     if not mesh.data.uv_layers:
         mesh.data.uv_layers.new(name="UVMap")
 
+    if len(mesh.material_slots) == 0:
+         bpy.data.materials.new("Material")
 
-    prim_list = materials.get('primary')   or [None]
-    sec_list  = materials.get('secondary') or [None]
-    ter_list  = materials.get('tertiary')  or [None]
+    for i in range(len(materials)):
+        group_bake_dir = os.path.join(bake_dir, f"material_group_{i}")
+        os.makedirs(group_bake_dir, exist_ok=True)
+        group = materials[i]
+        if i > len(mesh.material_slots):
+            print(f"Warning: Not enough material slots for group {i}.")
+            break
+        for mat in group:
+            apply_material(mesh, mat, i)
 
-    for pri, sec, ter in itertools.product(prim_list, sec_list, ter_list):
-
-        # Report what we're baking
-        print("Applying materials:",
-              pri.diffuse   if pri else "—",
-              sec.diffuse   if sec else "—",
-              ter.diffuse   if ter else "—")
-
-        apply_materials(mesh, pri, sec, ter)
-
-        print("Materials applied, baking texture")
-
-        name = pri.name
-
-        if sec:
-            name += "_" + sec.name
-        if ter:
-            name += "_" + ter.name
-
-        # 2) Bake out the texture for this combo
-        if bake_dir:
-            bake_texture(mesh, name, bake_dir=bake_dir, image_size=resolution, denoise=denoise)
-        else:
-            img_list.append(bake_texture(mesh, name, image_size=resolution, denoise=denoise))
+            name = mat.name
+            if bake_dir:
+                bake_texture(mesh, name, bake_dir=group_bake_dir, image_size=resolution, denoise=denoise)
+            else:
+                img_list.append(bake_texture(mesh, name, image_size=resolution, denoise=denoise))
     
+
     if not bake_dir:
         # Return the list of PIL images for further processing or saving
         return img_list
@@ -379,17 +338,14 @@ def read_json_materials(json_path):
     with open(json_path, 'r') as f:
         data = json.load(f)
     
-    material_dict = {
-        "primary": [],
-        "secondary": [],
-        "tertiary": []
-    }
+    material_list = []
 
-    for name, materials in data.items():
-        for material in materials:
+    for group in data:
+        group_materials = []
+        for material in group:
             # Creates Material objects for each material in the JSON file
             # Values without a default are set to None if not found
-            material_dict[name].append(
+            group_materials.append(
                 Material(
                     name=material.get("name"),
                     diffuse=material.get("diffuse"),
@@ -401,8 +357,9 @@ def read_json_materials(json_path):
                     scale=material.get("scale", 1.0)
                 )
             )
+        material_list.append(group_materials)
     
-    return material_dict
+    return material_list
 
 
 # Function that applies the baked texture maps, exports the model as GLB, and removes the PNG files
@@ -501,7 +458,7 @@ def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_
     )
 
     # Permutate and bake materials
-    permutate_and_bake_materials(materials, mesh, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
+    bake_materials_seperately(materials, mesh, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
 
     if export_glb:
         # Export the model with baked textures as a GLB file
