@@ -83,10 +83,16 @@ def bake_texture(mesh, img_name, image_size, denoise, bake_dir=None):
     print("Bake complete")
 
     if bake_dir:
-        # 5) Save out the result
-        img.filepath_raw = os.path.join(bake_dir, img_name + ".png")
-        img.file_format = 'PNG'
-        img.save()
+        # # 5) Save out the result
+        # img.filepath_raw = os.path.join(bake_dir, img_name + ".png")
+        # img.file_format = 'PNG'
+        # img.save()
+
+        # 5) Save out the result as JPEG at 95% quality
+        jpg_filepath = os.path.join(bake_dir, img_name + ".jpg")
+        img.filepath_raw = jpg_filepath
+        img.file_format = 'JPEG'
+        img.save(quality=95)
 
     else:
         # Retrieve pixel data from the baked image
