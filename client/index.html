@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div>
+        <h1>Upload images to make 3D Model</h1>
+        <form action="http://127.0.0.1:8000/process" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" />
+            <button type="submit">Upload & Process</button>
+        </form>
+    </div>
+    <div>
+        <h1>Upload Materials and GLB to retexture</h1>
+        <form
+            action="http://127.0.0.1:8000/retex"
+            method="post"
+            enctype="multipart/form-data"
+        >
+            <div id="file-inputs">
+                <div class="textures">
+                    <label>Folder with textures and material json:
+                    <input type="file" name="files" webkitdirectory mozdirectory />
+                    </label>
+                </div>
+                <div class="model">
+                    <label> Grouped GLB file:
+                        <input type="file" name="model" accept=".glb"/>
+                    </label>
+                </div>
+            </div>
+            <button type="submit">Upload All</button>
+        </form>
+    </div>
+  </body>
+</html>

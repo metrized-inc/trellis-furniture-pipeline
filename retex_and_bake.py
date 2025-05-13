@@ -343,6 +343,8 @@ def read_json_materials(json_path):
     import json
     with open(json_path, 'r') as f:
         data = json.load(f)
+
+    base_dir = os.path.dirname(json_path)
     
     material_list = []
 
@@ -354,12 +356,12 @@ def read_json_materials(json_path):
             group_materials.append(
                 Material(
                     name=material.get("name"),
-                    diffuse=material.get("diffuse"),
-                    roughness=material.get("roughness"),
-                    metallic=material.get("metallic"),
-                    normal=material.get("normal"),
-                    ao=material.get("ambient_occlusion"),
-                    orm=material.get("orm"),
+                    diffuse=os.path.join(base_dir, material.get("diffuse")) if material.get("diffuse") else None,
+                    roughness=os.path.join(base_dir, material.get("roughness")) if material.get("roughness") else None,
+                    metallic=os.path.join(base_dir, material.get("metallic")) if material.get("metallic") else None,
+                    normal=os.path.join(base_dir, material.get("normal")) if material.get("normal") else None,
+                    ao=os.path.join(base_dir, material.get("ambient_occlusion")) if material.get("ambient_occlusion") else None,
+                    orm=os.path.join(base_dir, material.get("orm")) if material.get("orm") else None,
                     scale=material.get("scale", 1.0)
                 )
             )
@@ -442,7 +444,7 @@ import click
 # @click.option('--export_glb', type=bool, default=False, help='Whether to export a baked GLB model instead of a texture map. Default is False.')
 
 
-def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise, samples, export_glb):
+def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise, samples):
     """
     Main function to retouch and bake materials based on a JSON file.
     
