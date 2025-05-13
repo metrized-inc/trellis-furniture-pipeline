@@ -56,7 +56,6 @@ NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/a
     - --denoise BOOLEAN       Whether to use denoising. Default is False. (Seams
                           will appear if set to True)
     - --samples INTEGER       Number of samples for baking. Default is 40.
-    - --export_glb BOOLEAN    Whether to export a baked GLB model instead of a texture map. Default is False.
     - --help                  Show this message and exit.
 - The outputs will be a folder of .png textures, this folder will be located in the same directory as the model you specified
 - These textures can easily be applied to the .obj that was outputted in step 1. For best results apply it as an emission texture so it is not affected by the lighting in the scene

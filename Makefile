@@ -11,6 +11,11 @@ export UV_NO_CACHE=0
 export UV_LINK_MODE=symlink
 export GIT_LFS_SKIP_SMUDGE=1
 
+.PHONY: server
+server: venv
+	@echo "Starting server with uvicorn..."
+	uv run uvicorn "server:app" --reload 
+
 .PHONY: install venv install_main install_vox2seq install_kaolin install_diffoctreerast install_diff_gaussian install_rembg install_bpy
 
 install: install_uv venv install_main install_vox2seq install_kaolin install_diffoctreerast install_diff_gaussian install_rembg install_bpy

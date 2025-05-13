@@ -30,3 +30,30 @@ def import_glb_merge_vertices(model_path, *, merge_threshold=1e-4):
 
     merged_obj.data.update()        # flush BMesh changes to GPU / depsgraph
     return merged_obj
+
+
+def add_file_to_temp(file_path, subfolder=""):
+    """
+    Adds a file to the temporary directory, returns the temporary file path.
+    """
+    import shutil
+    import os
+
+    temp_dir = "tmp"
+    temp_file_path = os.path.join(temp_dir, subfolder, os.path.basename(file_path))
+    
+    shutil.copy(file_path, temp_file_path)
+    
+    return temp_file_path
+
+
+def make_temp_material(material, group_num):
+    image_keys = [  "diffuse",
+                    "roughness",
+                    "metallic",
+                    "normal",
+                    "ambient_occlusion",
+                    "orm"]
+    for key in image_keys:
+        tmp_path = add_file_to_temp(material.get(key), subfolder=str(group_num))
+        material[key] = tmp_path

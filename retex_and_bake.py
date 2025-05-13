@@ -439,7 +439,7 @@ import click
 @click.option('--texture_size', type=int, default=4096, help='Size of the texture to bake. Default is 4096.')
 @click.option('--denoise', type=bool, default=False, help='Whether to use denoising. Default is False. (Seams will appear if set to True)')
 @click.option('--samples', type=int, default=40, help='Number of samples for baking. Default is 40.')
-@click.option('--export_glb', type=bool, default=False, help='Whether to export a baked GLB model instead of a texture map. Default is False.')
+# @click.option('--export_glb', type=bool, default=False, help='Whether to export a baked GLB model instead of a texture map. Default is False.')
 
 
 def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise, samples, export_glb):
@@ -466,9 +466,9 @@ def retex_and_bake(model_path, material_json, hdri_path, hdri_strength, texture_
     # Permutate and bake materials
     bake_materials_seperately(materials, mesh, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
 
-    if export_glb:
-        # Export the model with baked textures as a GLB file
-        apply_and_export_glb(model_path, os.path.join(os.path.dirname(model_path), "baked_textures"))
+    # if export_glb:
+    #     # Export the model with baked textures as a GLB file
+    #     apply_and_export_glb(model_path, os.path.join(os.path.dirname(model_path), "baked_textures"))
 
 
 if __name__ == "__main__":
