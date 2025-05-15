@@ -431,6 +431,25 @@ def apply_and_export_glb(model_path, bake_dir):
         os.remove(png_path)
 
 
+def retex_and_bake_endpoint(model_path, material_json, hdri_path, hdri_strength, texture_size, denoise, samples):
+    model_path = str(Path(model_path).resolve())
+    material_json = str(Path(material_json).resolve())
+    hdri_path = str(Path(hdri_path).resolve())
+    
+
+    materials = read_json_materials(material_json)
+
+    # Set up the scene with the model and HDRI environment
+    mesh = setup_hdri_environment(
+        model_path,
+        hdri_path,
+        hdri_strength
+    )
+
+    # Permutate and bake materials
+    bake_materials_seperately(materials, mesh, bake_dir=os.path.join(os.path.dirname(model_path), "baked_textures"), denoise=denoise, resolution=texture_size, samples=samples)
+
+
 import click
 
 @click.command()

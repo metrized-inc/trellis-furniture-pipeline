@@ -45,15 +45,3 @@ def add_file_to_temp(file_path, subfolder=""):
     shutil.copy(file_path, temp_file_path)
     
     return temp_file_path
-
-
-def make_temp_material(material, group_num):
-    image_keys = [  "diffuse",
-                    "roughness",
-                    "metallic",
-                    "normal",
-                    "ambient_occlusion",
-                    "orm"]
-    for key in image_keys:
-        tmp_path = add_file_to_temp(material.get(key), subfolder=str(group_num))
-        material[key] = tmp_path

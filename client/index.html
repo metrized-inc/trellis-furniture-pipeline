@@ -11,19 +11,19 @@
     <div>
         <h1>Upload Materials and GLB to retexture</h1>
         <form
-            action="http://127.0.0.1:8000/retex"
+            action="http://127.0.0.1:8000/retexure"
             method="post"
             enctype="multipart/form-data"
         >
             <div id="file-inputs">
                 <div class="textures">
                     <label>Folder with textures and material json:
-                    <input type="file" name="files" webkitdirectory mozdirectory />
+                    <input type="file" name="images" webkitdirectory mozdirectory required/>
                     </label>
                 </div>
                 <div class="model">
                     <label> Grouped GLB file:
-                        <input type="file" name="model" accept=".glb"/>
+                        <input type="file" name="glb_file" accept=".glb" required/>
                     </label>
                 </div>
             </div>
