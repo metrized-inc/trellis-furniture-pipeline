@@ -5,16 +5,16 @@ import os
 from PIL import Image
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from typing import List
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from multi_image_trellis import trellis_multiple_images
 from starlette.background import BackgroundTask
 from retex_and_bake import retex_and_bake_endpoint
 
 app = FastAPI()
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {"message": "Hello World"}
+    return FileResponse("client/index.html")
 
 @app.post("/trellis")
 async def create_mesh(files: List[UploadFile] = File(...)):

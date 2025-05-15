@@ -31,6 +31,8 @@
 ## HOW TO USE (do these steps in order)
 NOTE: Before running any of the scripts, activate the venv with ".venv/scripts/activate"
 
+**Steps 1 and 3 can now be done with a GUI, simply run "make website"**
+
 **1.TRELLIS PIPELINE**
 - This pipeline feeds a folder of images to TRELLIS, and then performs some post processing to remove duplicate verticies and auto-unwrap the UV Map
 - To run it, use the command "python trellis_and_proccess.py --image_folder='path/to/your/image/folder'"
