@@ -6,31 +6,35 @@ from PIL import Image
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from typing import List
 from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from multi_image_trellis import trellis_multiple_images
 from starlette.background import BackgroundTask
 from retex_and_bake import retex_and_bake_endpoint
 
 app = FastAPI()
 
+app.mount("/static", StaticFiles(directory="client/static"), name="static")
+
+
 @app.get("/", response_class=HTMLResponse)
 def root():
     return FileResponse("client/index.html")
 
 @app.post("/trellis")
-async def create_mesh(files: List[UploadFile] = File(...)):
+async def create_mesh(images: List[UploadFile] = File(...)):
     """
     Upload an image file and return the processed mesh.
     """
     contents = []
-    for file in files:
-        content = await file.read()
+    for image in images:
+        content = await image.read()
 
         try:
             img = Image.open(io.BytesIO(content))
             img.verify()
             img = Image.open(io.BytesIO(content)).convert("RGB")
         except Exception:
-            raise HTTPException(status_code=400, detail=f"File '{file.filename}' is not a valid image.")
+            raise HTTPException(status_code=400, detail=f"File '{image.filename}' is not a valid image.")
         contents.append(img)
 
 
