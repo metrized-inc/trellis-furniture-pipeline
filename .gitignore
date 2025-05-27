@@ -502,6 +502,7 @@ celerybeat-schedule
 # Environments
 .env
 .venv
+.venv_old
 env/
 venv/
 ENV/

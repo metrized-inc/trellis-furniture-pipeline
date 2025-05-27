@@ -34,7 +34,7 @@ def remove_all_backgrounds(images):
 
 def trellis_multiple_images(images):
     # Load a pipeline from a model folder or a Hugging Face model hub.
-    pipeline = TrellisImageTo3DPipeline.from_pretrained("JeffreyXiang/TRELLIS-image-large")
+    pipeline = TrellisImageTo3DPipeline.from_pretrained("jetx/TRELLIS-image-large")
     pipeline.cuda()
 
     images = remove_all_backgrounds(images)
