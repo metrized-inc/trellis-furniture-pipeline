@@ -3,13 +3,15 @@ import zipfile
 import shutil
 import os
 from PIL import Image
-from fastapi import FastAPI, HTTPException, File, UploadFile
+from fastapi import FastAPI, HTTPException, File, UploadFile, BackgroundTasks
 from typing import List
-from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from multi_image_trellis import trellis_multiple_images
 from starlette.background import BackgroundTask
 from retex_and_bake import retex_and_bake_endpoint
+from uuid import uuid4
+import redis
 
 app = FastAPI()
 
@@ -77,6 +79,57 @@ async def create_mesh(images: List[UploadFile] = File(...)):
         headers={
             "Content-Disposition": "attachment; filename=model.glb"
         }
+    )
+
+rdb = redis.Redis()
+
+
+@app.post("/trellis_async", status_code=202)
+async def create_mesh_async(
+    background_tasks: BackgroundTasks,
+    images: List[UploadFile] = File(...)
+    ):
+    raw_imgs = [await image.read() for image in images]
+    job_id = str(uuid4())
+    rdb.hset(job_id, "status", "queued")
+    background_tasks.add_task(run_mesh_job, job_id, raw_imgs)
+    return {"job_id": job_id, "status_url": f"/trellis/{job_id}"}
+
+
+def run_mesh_job(job_id: str, raw_imgs: List[bytes]):
+    pil_imgs = []
+    for b in raw_imgs:
+        img = Image.open(io.BytesIO(b)).convert("RGB")
+        pil_imgs.append(img)
+        
+    try:
+        meshes = trellis_multiple_images(pil_imgs)
+        rdb.hset(job_id, "status", "finished")
+        rdb.hset(job_id, "result", meshes)
+    except Exception as exc:
+        rdb.hset(job_id, "status", "failed")
+        rdb.hset(job_id, "error", str(exc))
+
+
+@app.get("/trellis/{job_id}")
+async def mesh_status(job_id: str):
+    meta = rdb.hgetall(job_id)
+    if not meta:
+        raise HTTPException(404, "No such job")
+    if meta[b"status"] == b"finished":
+        data = meta[b"result"]
+        buffer = io.BytesIO(data)
+        return StreamingResponse(
+            buffer,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": "attachment; filename=model.glb"
+            }
+        )
+    # still running or failed
+    return JSONResponse(
+        {"status": meta[b"status"].decode(),
+         "error": meta.get(b"error", b"").decode()}
     )
 
 
