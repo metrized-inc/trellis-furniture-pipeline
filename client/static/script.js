@@ -18,3 +18,26 @@ window.addEventListener("focus", function () {
         loadingRetex.classList.add("hidden");
     }
 });
+
+// wrap everything that touches the DOM in DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* existing form-submit handlers ... */
+
+  // GLB button
+  const glbBtn = document.getElementById('submit-glb');
+  if (glbBtn) {
+    console.log('#submit-glb found, binding event listener');
+    glbBtn.addEventListener('click', () => {
+      console.log('Submitting to GLB via event listener');
+      const form = document.getElementById('mesh-form');
+
+      // change action, show spinner, then submit
+      form.action = '/trellis-glb';
+      document.getElementById('loading-mesh').classList.remove('hidden');
+      form.submit();
+    });
+  } else {
+    console.warn('#submit-glb not found when binding listener');
+  }
+});

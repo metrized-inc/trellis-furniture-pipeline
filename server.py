@@ -50,6 +50,36 @@ async def create_mesh(images: List[UploadFile] = File(...)):
     )
 
 
+@app.post("/trellis-glb")
+async def create_mesh(images: List[UploadFile] = File(...)):
+    """
+    Upload an image file and return the processed mesh.
+    """
+    contents = []
+    for image in images:
+        content = await image.read()
+
+        try:
+            img = Image.open(io.BytesIO(content))
+            img.verify()
+            img = Image.open(io.BytesIO(content)).convert("RGB")
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"File '{image.filename}' is not a valid image.")
+        contents.append(img)
+
+
+    data = trellis_multiple_images(contents, postprocessing=False)
+    buffer = io.BytesIO(data)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": "attachment; filename=model.glb"
+        }
+    )
+
+
 @app.post("/retexure")
 async def retexture_mesh(
     images: List[UploadFile] = File(...),
