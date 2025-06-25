@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from multi_image_trellis import trellis_multiple_images
 from starlette.background import BackgroundTask
 from retex_and_bake import retex_and_bake_endpoint
+from model_to_views import model_to_views
 from uuid import uuid4
 import redis
 
@@ -204,5 +205,37 @@ async def retexture_mesh(
         zip_buffer,
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=baked_textures.zip"},
+        background=BackgroundTask(cleanup_temp)
+    )
+
+
+@app.post("/generate_multiviews")
+async def generate_views(
+    num_views: int,
+    glb_file: UploadFile = File(...)
+    ):
+    temp_folder = "tmp/multiview"
+    os.makedirs(temp_folder, exist_ok=True)
+
+    glb_content = await glb_file.read()
+    glb_path = os.path.join(temp_folder, glb_file.filename)
+    with open(glb_path, "wb") as f:
+        f.write(glb_content)
+
+    image_paths = model_to_views(model_path=glb_file, output_path=temp_folder, num_views=num_views)
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for file_path in image_paths:
+            zipf.write(file_path)
+    zip_buffer.seek(0)
+
+    def cleanup_temp():
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=views.zip"},
         background=BackgroundTask(cleanup_temp)
     )

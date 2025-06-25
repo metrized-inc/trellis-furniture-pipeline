@@ -3,7 +3,9 @@ import os
 import math
 from utils import import_glb_merge_vertices
 
-def model_to_views(model_path, num_views=4):
+
+# returns a list of the paths to the output images
+def model_to_views(model_path, output_path, num_views=4):
     if not os.path.exists(model_path):
         raise RuntimeError(f"Input file not found: {model_path}")
 
@@ -36,13 +38,20 @@ def model_to_views(model_path, num_views=4):
     merged_obj.rotation_mode = 'XYZ'
 
     angle_delta = int(360 / num_views)
+    paths = []
     for angle in range(0, 360, angle_delta):
         merged_obj.rotation_euler = (0, 0, math.radians(angle))
         bpy.context.view_layer.update()  # <-- This ensures Blender registers the rotation
 
-        scn.render.filepath = os.path.join(os.getcwd(), "tmp", f"{angle}.png")
+        path = os.path.join(output_path, f"{angle}.png")
+        paths.append(path)
+        scn.render.filepath = path
         bpy.ops.render.render(write_still=True)
+    
+    return paths
 
 
 if __name__ == "__main__":
-    model_to_views(r"C:\Users\josephd\Documents\3D Objects\TRELLIS\iq_chair_multi.glb", 32)
+    model_to_views(r"C:\Users\josephd\Documents\3D Objects\TRELLIS\iq_chair_multi.glb", 
+                   os.path.join(os.getcwd(), "tmp"), 
+                   32)
