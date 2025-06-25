@@ -5,6 +5,10 @@ files = [
     ('images', open(r"C:\Users\josephd\Pictures\furniture\salema2\views\front.jpg", 'rb')),
     # Add more images as needed
 ]
+
+files_png = [
+    ('images', open(r"C:\Users\josephd\Downloads\20250410_093221-removebg-preview.png", 'rb'))
+]
 # response = requests.post('https://furniture.metrized.com/trellis', files=files)
 # with open('result.obj', 'wb') as f:
 #     f.write(response.content)
@@ -13,7 +17,7 @@ files = [
 # with open('model.glb', 'wb') as f:
 #     f.write(response.content)
 
-resp = requests.post("https://furniture.metrized.com/trellis_async", files=files)
+resp = requests.post("https://furniture.metrized.com/trellis_async", files=files_png)
 resp.raise_for_status()
 job = resp.json()
 status_url = "https://furniture.metrized.com" + job["status_url"]
