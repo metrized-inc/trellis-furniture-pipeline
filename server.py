@@ -214,7 +214,7 @@ async def generate_views(
     num_views: int = Form(...),
     glb_file: UploadFile = File(...)
     ):
-    temp_folder = "tmp/multiview"
+    temp_folder = os.path.join(os.getcwd(), "tmp", "multiview")
     os.makedirs(temp_folder, exist_ok=True)
 
     glb_content = await glb_file.read()
