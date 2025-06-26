@@ -222,7 +222,7 @@ async def generate_views(
     with open(glb_path, "wb") as f:
         f.write(glb_content)
 
-    image_paths = model_to_views(model_path=glb_file, output_path=temp_folder, num_views=num_views)
+    image_paths = model_to_views(model_path=glb_path, output_path=temp_folder, num_views=num_views)
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
