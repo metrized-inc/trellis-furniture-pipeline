@@ -3,7 +3,7 @@ import zipfile
 import shutil
 import os
 from PIL import Image
-from fastapi import FastAPI, HTTPException, File, UploadFile, BackgroundTasks
+from fastapi import FastAPI, HTTPException, File, Form, UploadFile, BackgroundTasks
 from typing import List
 from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -211,7 +211,7 @@ async def retexture_mesh(
 
 @app.post("/generate_multiviews")
 async def generate_views(
-    num_views: int,
+    num_views: int = Form(...),
     glb_file: UploadFile = File(...)
     ):
     temp_folder = "tmp/multiview"

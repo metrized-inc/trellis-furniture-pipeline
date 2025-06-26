@@ -61,5 +61,5 @@ def test_async():
 
 
 if __name__ == "__main__":
-    test_async()
-    # test_multiview()
+    # test_async()
+    test_multiview()
