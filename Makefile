@@ -14,7 +14,7 @@ export GIT_LFS_SKIP_SMUDGE=1
 .PHONY: website
 website: venv
 	@echo "Starting server with uvicorn..."
-	uv run uvicorn "server:app" --reload --port 8123
+	uv run uvicorn "server:app" --reload --port 8123 --host 0.0.0.0
 	Start-Process "client/index.html"
 
 .PHONY: install venv install_main install_vox2seq install_kaolin install_diffoctreerast install_diff_gaussian install_rembg install_bpy

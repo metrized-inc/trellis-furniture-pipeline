@@ -104,7 +104,7 @@ def run_mesh_job(job_id: str, raw_imgs: List[bytes]):
         pil_imgs.append(img)
         
     try:
-        meshes = trellis_multiple_images(pil_imgs)
+        meshes = trellis_multiple_images(pil_imgs, postprocessing=False)
         rdb.hset(job_id, "status", "finished")
         rdb.hset(job_id, "result", meshes)
     except Exception as exc:
