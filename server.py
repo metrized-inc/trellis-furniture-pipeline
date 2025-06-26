@@ -227,7 +227,8 @@ async def generate_views(
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
         for file_path in image_paths:
-            zipf.write(file_path)
+            arcname = os.path.relpath(file_path, temp_folder)
+            zipf.write(file_path, arcname)
     zip_buffer.seek(0)
 
     def cleanup_temp():
