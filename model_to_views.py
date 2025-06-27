@@ -37,16 +37,19 @@ def model_to_views(model_path, output_path, num_views=4):
         scn.collection.objects.link(merged_obj)
     merged_obj.rotation_mode = 'XYZ'
 
-    angle_delta = int(360 / num_views)
+    angle_delta = 360 / num_views
     paths = []
-    for angle in range(0, 360, angle_delta):
+    angle = 0.0
+    while angle < 360:
         merged_obj.rotation_euler = (0, 0, math.radians(angle))
-        bpy.context.view_layer.update()  # <-- This ensures Blender registers the rotation
+        bpy.context.view_layer.update()
 
-        path = os.path.join(output_path, f"{angle}.png")
+        path = os.path.join(output_path, f"{angle:.2f}.png")
         paths.append(path)
         scn.render.filepath = path
         bpy.ops.render.render(write_still=True)
+
+        angle += angle_delta
     
     return paths
 

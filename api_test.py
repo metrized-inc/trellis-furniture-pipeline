@@ -19,7 +19,7 @@ files_png = [
 
 
 def test_multiview():
-    glb_path = r"C:\Users\josephd\Documents\3D Objects\TRELLIS\iq_chair_multi.glb"
+    glb_path = r"C:\Users\josephd\Pictures\furniture\iq chair 2\API Testing\Tripo\no_background.glb"
     url = 'https://furniture.metrized.com/generate_multiviews'
 
     # Open the GLB file in binary mode
