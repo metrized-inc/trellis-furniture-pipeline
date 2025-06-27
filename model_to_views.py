@@ -18,7 +18,7 @@ def model_to_views(model_path, output_path, num_views=4):
 
     # create the first camera
     cam1 = bpy.data.cameras.new("Camera 1")
-    cam1.lens = 45
+    cam1.lens = 90
 
     # create the first camera object
     cam_obj1 = bpy.data.objects.new("Camera 1", cam1)
@@ -36,6 +36,12 @@ def model_to_views(model_path, output_path, num_views=4):
     if merged_obj.name not in [obj.name for obj in scn.collection.objects]:
         scn.collection.objects.link(merged_obj)
     merged_obj.rotation_mode = 'XYZ'
+
+    merged_obj.select_set(True)
+                          
+    bpy.ops.view3d.camera_to_view_selected()
+
+    cam1.lens = 45
 
     angle_delta = 360 / num_views
     paths = []
@@ -57,4 +63,4 @@ def model_to_views(model_path, output_path, num_views=4):
 if __name__ == "__main__":
     model_to_views(r"C:\Users\josephd\Documents\3D Objects\TRELLIS\iq_chair_multi.glb", 
                    os.path.join(os.getcwd(), "tmp"), 
-                   32)
+                   4)
