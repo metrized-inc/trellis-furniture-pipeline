@@ -32,7 +32,7 @@ def remove_all_backgrounds(images):
     return images
 
 
-def trellis_multiple_images(images, postprocessing=True):
+def trellis_multiple_images(images, postprocessing=True, sparse_structure_sampler_strength=16, slat_sampler_strength=3):
     # Load a pipeline from a model folder or a Hugging Face model hub.
     pipeline = TrellisImageTo3DPipeline.from_pretrained("jetx/TRELLIS-image-large")
     pipeline.cuda()
@@ -48,11 +48,11 @@ def trellis_multiple_images(images, postprocessing=True):
         # Optional parameters
         sparse_structure_sampler_params={
             "steps": 15,
-            "cfg_strength": 16,
+            "cfg_strength": sparse_structure_sampler_strength,
         },
         slat_sampler_params={
             "steps": 15,
-            "cfg_strength": 3,
+            "cfg_strength": slat_sampler_strength,
         },
     )
 

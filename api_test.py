@@ -7,8 +7,15 @@ files = [
 ]
 
 files_png = [
-    ('images', open(r"C:\Users\josephd\Downloads\20250410_093221-removebg-preview.png", 'rb'))
+    ('images', open(r"C:\Users\josephd\Pictures\bracket\nobg.png", 'rb')),
 ]
+
+# files_png = [
+#     ('images', open(r"C:\Users\josephd\Pictures\furniture\iq chair 2\5 views\4_no_bg\download.png", 'rb')),
+#     ('images', open(r"C:\Users\josephd\Pictures\furniture\iq chair 2\3 views\cutout3.png", 'rb')),
+#     ('images', open(r"C:\Users\josephd\Pictures\furniture\iq chair 2\3 views\birefnet_0.png", 'rb')),
+# ]
+
 # response = requests.post('https://furniture.metrized.com/trellis', files=files)
 # with open('result.obj', 'wb') as f:
 #     f.write(response.content)
@@ -61,5 +68,5 @@ def test_async():
 
 
 if __name__ == "__main__":
-    # test_async()
-    test_multiview()
+    test_async()
+    # test_multiview()

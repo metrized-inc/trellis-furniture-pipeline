@@ -88,23 +88,26 @@ rdb = redis.Redis()
 @app.post("/trellis_async", status_code=202)
 async def create_mesh_async(
     background_tasks: BackgroundTasks,
-    images: List[UploadFile] = File(...)
+    images: List[UploadFile] = File(...),
+    # Optional parameters can be added here
+    sparse_structure_sampler_strength: int = 16,
+    slat_sampler_strength: int = 3
     ):
     raw_imgs = [await image.read() for image in images]
     job_id = str(uuid4())
     rdb.hset(job_id, "status", "queued")
-    background_tasks.add_task(run_mesh_job, job_id, raw_imgs)
+    background_tasks.add_task(run_mesh_job, job_id, raw_imgs, sparse_structure_sampler_strength, slat_sampler_strength)
     return {"job_id": job_id, "status_url": f"/trellis/{job_id}"}
 
 
-def run_mesh_job(job_id: str, raw_imgs: List[bytes]):
+def run_mesh_job(job_id: str, raw_imgs: List[bytes], ssss, sss):
     pil_imgs = []
     for b in raw_imgs:
         img = Image.open(io.BytesIO(b)).convert("RGB")
         pil_imgs.append(img)
         
     try:
-        meshes = trellis_multiple_images(pil_imgs, postprocessing=False)
+        meshes = trellis_multiple_images(pil_imgs, False, ssss, sss)
         rdb.hset(job_id, "status", "finished")
         rdb.hset(job_id, "result", meshes)
     except Exception as exc:
